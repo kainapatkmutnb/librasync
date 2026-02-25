@@ -1,0 +1,65 @@
+<%- include('../partials/header') %>
+
+<div class="page-header">
+  <h1>รายงานการยืมปัจจุบัน</h1>
+  <button onclick="window.print()" class="btn btn-secondary no-print">🖨️ พิมพ์รายงาน</button>
+</div>
+
+<!-- Print Header -->
+<div class="print-header" style="display: none;">
+  <h2>รายงานการยืมปัจจุบัน</h2>
+  <p>วันที่พิมพ์: <%= printDate %></p>
+  <p>จำนวนทั้งหมด: <%= activeLoans ? activeLoans.length : 0 %> รายการ</p>
+</div>
+
+<!-- Active Loans Table -->
+<% if (activeLoans && activeLoans.length > 0) { %>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>ชื่อหนังสือ</th>
+        <th>ผู้แต่ง</th>
+        <th>ผู้ยืม</th>
+        <th>วันที่ยืม</th>
+        <th>จำนวนวัน</th>
+        <th class="no-print actions-column">จัดการ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% activeLoans.forEach((loan, index) => { %>
+        <tr class="<%= loan.days_borrowed > 7 ? 'overdue' : '' %>">
+          <td><%= index + 1 %></td>
+          <td><%= loan.title %></td>
+          <td><%= loan.author %></td>
+          <td><%= loan.member %></td>
+          <td><%= new Date(loan.borrow_date).toLocaleDateString('th-TH') %></td>
+          <td>
+            <span class="<%= loan.days_borrowed > 7 ? 'text-danger' : '' %>">
+              <%= loan.days_borrowed %> วัน
+              <% if (loan.days_borrowed > 7) { %>
+                <span class="badge badge-danger">เกินกำหนด</span>
+              <% } %>
+            </span>
+          </td>
+          <td class="no-print actions-column">
+            <form action="/loans/<%= loan.id %>/return" method="POST" onsubmit="return confirm('คืนหนังสือเล่มนี้?')">
+              <button type="submit" class="btn btn-sm btn-success">↩️ คืนหนังสือ</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  
+  <!-- Summary -->
+  <div class="report-summary">
+    <h3>สรุป</h3>
+    <p>หนังสือที่กำลังถูกยืมทั้งหมด: <strong><%= activeLoans.length %></strong> เล่ม</p>
+    <p>หนังสือที่เกินกำหนด 7 วัน: <strong class="text-danger"><%= activeLoans.filter(l => l.days_borrowed > 7).length %></strong> เล่ม</p>
+  </div>
+<% } else { %>
+  <p class="no-data">ไม่มีหนังสือที่กำลังถูกยืม</p>
+<% } %>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,94 @@
+<%- include('../partials/header') %>
+
+<div class="page-header">
+  <h1>ประวัติการยืม-คืน</h1>
+  <a href="/loans/new" class="btn btn-primary no-print">📤 ยืมหนังสือ</a>
+</div>
+
+<!-- Pagination Controls -->
+<div class="controls no-print">
+  <div class="limit-selector">
+    <label>แสดง:</label>
+    <select onchange="window.location.href='?page=1&limit='+this.value">
+      <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
+      <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
+      <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
+    </select>
+    <span>รายการต่อหน้า</span>
+  </div>
+</div>
+
+<!-- Print Header (hidden on screen) -->
+<div class="print-header" style="display: none;">
+  <h2>รายงานประวัติการยืม-คืน</h2>
+  <p>วันที่พิมพ์: <%= new Date().toLocaleDateString('th-TH') %></p>
+  <p>จำนวนทั้งหมด: <%= pagination.totalItems || 0 %> รายการ</p>
+</div>
+
+<!-- Loans Table -->
+<% if (loans && loans.length > 0) { %>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>หนังสือ</th>
+        <th>ผู้แต่ง</th>
+        <th>ผู้ยืม</th>
+        <th>วันที่ยืม</th>
+        <th>วันที่คืน</th>
+        <th>สถานะ</th>
+        <th class="no-print actions-column">จัดการ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% loans.forEach((loan, index) => { %>
+        <tr>
+          <td><%= (pagination.page - 1) * pagination.limit + index + 1 %></td>
+          <td><%= loan.Book ? loan.Book.title : 'ไม่ทราบ' %></td>
+          <td><%= loan.Book && loan.Book.Author ? loan.Book.Author.full_name : 'ไม่ทราบ' %></td>
+          <td><%= loan.Member ? loan.Member.full_name : 'ไม่ทราบ' %></td>
+          <td><%= new Date(loan.borrow_date).toLocaleDateString('th-TH') %></td>
+          <td><%= loan.return_date ? new Date(loan.return_date).toLocaleDateString('th-TH') : '-' %></td>
+          <td>
+            <% if (loan.return_date) { %>
+              <span class="status-badge status-returned">คืนแล้ว</span>
+            <% } else { %>
+              <span class="status-badge status-borrowed">กำลังยืม</span>
+            <% } %>
+          </td>
+          <td class="no-print actions-column">
+            <% if (!loan.return_date) { %>
+              <form action="/loans/<%= loan.id %>/return" method="POST" onsubmit="return confirm('คืนหนังสือเล่มนี้?')">
+                <button type="submit" class="btn btn-sm btn-success">↩️ คืน</button>
+              </form>
+            <% } else { %>
+              <span class="text-muted">-</span>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  
+  <!-- Pagination -->
+  <% if (pagination.totalPages > 1) { %>
+    <div class="pagination no-print">
+      <% if (pagination.hasPrev) { %>
+        <a href="?page=<%= pagination.page - 1 %>&limit=<%= pagination.limit %>" class="btn btn-light">← ก่อนหน้า</a>
+      <% } %>
+      
+      <span class="page-info">หน้า <%= pagination.page %> จาก <%= pagination.totalPages %> (ทั้งหมด <%= pagination.totalItems %> รายการ)</span>
+      
+      <% if (pagination.hasNext) { %>
+        <a href="?page=<%= pagination.page + 1 %>&limit=<%= pagination.limit %>" class="btn btn-light">ถัดไป →</a>
+      <% } %>
+    </div>
+  <% } %>
+<% } else { %>
+  <p class="no-data">ไม่พบประวัติการยืม-คืน</p>
+<% } %>
+
+<!-- Print Button -->
+<button onclick="window.print()" class="btn btn-secondary no-print" style="margin-top: 20px;">🖨️ พิมพ์รายงาน</button>
+
+<%- include('../partials/footer') %>

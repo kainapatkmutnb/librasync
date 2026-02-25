@@ -1,0 +1,89 @@
+<%- include('../partials/header') %>
+
+<div class="form-container">
+  <h1>ยืมหนังสือ</h1>
+  
+  <% if (errors && errors.length > 0) { %>
+    <div class="alert alert-error">
+      <ul>
+        <% errors.forEach(error => { %>
+          <li><%= error.msg %></li>
+        <% }) %>
+      </ul>
+    </div>
+  <% } %>
+  
+  <% if (availableBooks && availableBooks.length > 0) { %>
+    <form method="POST" action="/loans">
+      <div class="form-group">
+        <label for="book_id">หนังสือ <span class="required">*</span></label>
+        <select 
+          id="book_id" 
+          name="book_id"
+          class="<%= errors && errors.find(e => e.path === 'book_id') ? 'error' : '' %>"
+          required
+        >
+          <option value="">-- เลือกหนังสือ --</option>
+          <% availableBooks.forEach(book => { %>
+            <option value="<%= book.id %>" <%= formData.book_id == book.id ? 'selected' : '' %>>
+              <%= book.title %> - <%= book.Author ? book.Author.full_name : 'ไม่ทราบผู้แต่ง' %>
+            </option>
+          <% }) %>
+        </select>
+        <% const bookError = errors && errors.find(e => e.path === 'book_id'); %>
+        <% if (bookError) { %>
+          <span class="error-message"><%= bookError.msg %></span>
+        <% } %>
+      </div>
+      
+      <div class="form-group">
+        <label for="member_id">สมาชิก <span class="required">*</span></label>
+        <select 
+          id="member_id" 
+          name="member_id"
+          class="<%= errors && errors.find(e => e.path === 'member_id') ? 'error' : '' %>"
+          required
+        >
+          <option value="">-- เลือกสมาชิก --</option>
+          <% members.forEach(member => { %>
+            <option value="<%= member.id %>" <%= formData.member_id == member.id ? 'selected' : '' %>>
+              <%= member.full_name %> (<%= member.email %>)
+            </option>
+          <% }) %>
+        </select>
+        <% const memberError = errors && errors.find(e => e.path === 'member_id'); %>
+        <% if (memberError) { %>
+          <span class="error-message"><%= memberError.msg %></span>
+        <% } %>
+      </div>
+      
+      <div class="form-group">
+        <label for="borrow_date">วันที่ยืม <span class="required">*</span></label>
+        <input 
+          type="date" 
+          id="borrow_date" 
+          name="borrow_date" 
+          value="<%= formData.borrow_date || new Date().toISOString().split('T')[0] %>"
+          class="<%= errors && errors.find(e => e.path === 'borrow_date') ? 'error' : '' %>"
+          required
+        >
+        <% const dateError = errors && errors.find(e => e.path === 'borrow_date'); %>
+        <% if (dateError) { %>
+          <span class="error-message"><%= dateError.msg %></span>
+        <% } %>
+      </div>
+      
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">📤 บันทึกการยืม</button>
+        <a href="/loans" class="btn btn-light">ยกเลิก</a>
+      </div>
+    </form>
+  <% } else { %>
+    <div class="alert alert-warning">
+      <p>ไม่มีหนังสือที่พร้อมให้ยืมในขณะนี้</p>
+      <a href="/books/new" class="btn btn-primary">➕ เพิ่มหนังสือใหม่</a>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>

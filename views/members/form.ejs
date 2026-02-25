@@ -1,0 +1,89 @@
+<%- include('../partials/header') %>
+
+<div class="form-container">
+  <h1><%= member ? 'แก้ไขสมาชิก' : 'เพิ่มสมาชิก' %></h1>
+  
+  <% if (errors && errors.length > 0) { %>
+    <div class="alert alert-error">
+      <ul>
+        <% errors.forEach(error => { %>
+          <li><%= error.msg %></li>
+        <% }) %>
+      </ul>
+    </div>
+  <% } %>
+  
+  <form method="POST" action="<%= member ? '/members/' + member.id + '/update' : '/members' %>">
+    <div class="form-group">
+      <label for="full_name">ชื่อ-นามสกุล <span class="required">*</span></label>
+      <input 
+        type="text" 
+        id="full_name" 
+        name="full_name" 
+        value="<%= formData.full_name || (member ? member.full_name : '') %>"
+        class="<%= errors && errors.find(e => e.path === 'full_name') ? 'error' : '' %>"
+        required
+      >
+      <% const nameError = errors && errors.find(e => e.path === 'full_name'); %>
+      <% if (nameError) { %>
+        <span class="error-message"><%= nameError.msg %></span>
+      <% } %>
+    </div>
+    
+    <div class="form-group">
+      <label for="email">อีเมล <span class="required">*</span></label>
+      <input 
+        type="email" 
+        id="email" 
+        name="email" 
+        value="<%= formData.email || (member ? member.email : '') %>"
+        class="<%= errors && errors.find(e => e.path === 'email') ? 'error' : '' %>"
+        required
+      >
+      <% const emailError = errors && errors.find(e => e.path === 'email'); %>
+      <% if (emailError) { %>
+        <span class="error-message"><%= emailError.msg %></span>
+      <% } %>
+    </div>
+    
+    <div class="form-group">
+      <label for="phone_number">เบอร์โทรศัพท์ <span class="required">*</span></label>
+      <input 
+        type="tel" 
+        id="phone_number" 
+        name="phone_number" 
+        value="<%= formData.phone_number || (member ? member.phone_number : '') %>"
+        class="<%= errors && errors.find(e => e.path === 'phone_number') ? 'error' : '' %>"
+        placeholder="เช่น 0812345678"
+        required
+      >
+      <% const phoneError = errors && errors.find(e => e.path === 'phone_number'); %>
+      <% if (phoneError) { %>
+        <span class="error-message"><%= phoneError.msg %></span>
+      <% } %>
+    </div>
+    
+    <div class="form-group">
+      <label for="joined_date">วันที่สมัคร <span class="required">*</span></label>
+      <input 
+        type="date" 
+        id="joined_date" 
+        name="joined_date" 
+        value="<%= formData.joined_date || (member ? member.joined_date : new Date().toISOString().split('T')[0]) %>"
+        class="<%= errors && errors.find(e => e.path === 'joined_date') ? 'error' : '' %>"
+        required
+      >
+      <% const dateError = errors && errors.find(e => e.path === 'joined_date'); %>
+      <% if (dateError) { %>
+        <span class="error-message"><%= dateError.msg %></span>
+      <% } %>
+    </div>
+    
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">💾 บันทึก</button>
+      <a href="/members" class="btn btn-light">ยกเลิก</a>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

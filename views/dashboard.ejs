@@ -1,0 +1,89 @@
+<%- include('partials/header') %>
+
+<div class="dashboard">
+  <h1>แดชบอร์ด</h1>
+  
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fas fa-book"></i></div>
+      <div class="stat-content">
+        <h3>หนังสือทั้งหมด</h3>
+        <p class="stat-number"><%= stats.totalBooks || 0 %></p>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+      <div class="stat-content">
+        <h3>พร้อมให้ยืม</h3>
+        <p class="stat-number"><%= stats.availableBooks || 0 %></p>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fas fa-users"></i></div>
+      <div class="stat-content">
+        <h3>สมาชิกทั้งหมด</h3>
+        <p class="stat-number"><%= stats.totalMembers || 0 %></p>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fas fa-book-open"></i></div>
+      <div class="stat-content">
+        <h3>กำลังถูกยืม</h3>
+        <p class="stat-number"><%= stats.activeLoans || 0 %></p>
+      </div>
+    </div>
+    
+    <div class="stat-card warning">
+      <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+      <div class="stat-content">
+        <h3>เกินกำหนด 7 วัน</h3>
+        <p class="stat-number"><%= stats.overdueLoans || 0 %></p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Recent Activities -->
+  <div class="recent-activities">
+    <h2>กิจกรรมล่าสุด</h2>
+    <% if (recentActivities && recentActivities.length > 0) { %>
+      <div class="activity-list">
+        <% recentActivities.forEach(activity => { %>
+          <div class="activity-item">
+            <div class="activity-icon">
+              <%- activity.return_date ? '<i class="fas fa-undo"></i>' : '<i class="fas fa-paper-plane"></i>' %>
+            </div>
+            <div class="activity-content">
+              <p>
+                <strong><%= activity.Member ? activity.Member.full_name : 'ไม่ทราบชื่อ' %></strong>
+                <%= activity.return_date ? 'คืน' : 'ยืม' %>
+                <strong><%= activity.Book ? activity.Book.title : 'ไม่ทราบชื่อหนังสือ' %></strong>
+              </p>
+              <span class="activity-time">
+                <%= new Date(activity.createdAt).toLocaleString('th-TH') %>
+              </span>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="no-data">ยังไม่มีกิจกรรม</p>
+    <% } %>
+  </div>
+  
+  <!-- Quick Actions -->
+  <div class="quick-actions no-print">
+    <h2>ทำงานด่วน</h2>
+    <div class="action-buttons">
+      <a href="/books/new" class="btn btn-primary">➕ เพิ่มหนังสือ</a>
+      <a href="/members/new" class="btn btn-primary">➕ เพิ่มสมาชิก</a>
+      <a href="/loans/new" class="btn btn-primary">📤 ยืมหนังสือ</a>
+      <a href="/reports/active-loans" class="btn btn-secondary">📊 ดูรายงาน</a>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

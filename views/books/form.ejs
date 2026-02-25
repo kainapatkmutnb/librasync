@@ -1,0 +1,96 @@
+<%- include('../partials/header') %>
+
+<div class="form-container">
+  <h1><%= book ? 'แก้ไขหนังสือ' : 'เพิ่มหนังสือ' %></h1>
+  
+  <% if (errors && errors.length > 0) { %>
+    <div class="alert alert-error">
+      <ul>
+        <% errors.forEach(error => { %>
+          <li><%= error.msg %></li>
+        <% }) %>
+      </ul>
+    </div>
+  <% } %>
+  
+  <form method="POST" action="<%= book ? '/books/' + book.id + '/update' : '/books' %>">
+    <div class="form-group">
+      <label for="title">ชื่อหนังสือ <span class="required">*</span></label>
+      <input 
+        type="text" 
+        id="title" 
+        name="title" 
+        value="<%= formData.title || (book ? book.title : '') %>"
+        class="<%= errors && errors.find(e => e.path === 'title') ? 'error' : '' %>"
+        required
+      >
+      <% const titleError = errors && errors.find(e => e.path === 'title'); %>
+      <% if (titleError) { %>
+        <span class="error-message"><%= titleError.msg %></span>
+      <% } %>
+    </div>
+    
+    <div class="form-group">
+      <label for="isbn">ISBN <span class="required">*</span></label>
+      <input 
+        type="text" 
+        id="isbn" 
+        name="isbn" 
+        value="<%= formData.isbn || (book ? book.isbn : '') %>"
+        class="<%= errors && errors.find(e => e.path === 'isbn') ? 'error' : '' %>"
+        placeholder="เช่น 978-0132350884"
+        required
+      >
+      <% const isbnError = errors && errors.find(e => e.path === 'isbn'); %>
+      <% if (isbnError) { %>
+        <span class="error-message"><%= isbnError.msg %></span>
+      <% } %>
+    </div>
+    
+    <div class="form-group">
+      <label for="author_id">ผู้แต่ง <span class="required">*</span></label>
+      <select 
+        id="author_id" 
+        name="author_id"
+        class="<%= errors && errors.find(e => e.path === 'author_id') ? 'error' : '' %>"
+        required
+      >
+        <option value="">-- เลือกผู้แต่ง --</option>
+        <% authors.forEach(author => { %>
+          <option value="<%= author.id %>" <%= (formData.author_id == author.id || (book && book.author_id == author.id)) ? 'selected' : '' %>>
+            <%= author.full_name %>
+          </option>
+        <% }) %>
+      </select>
+      <% const authorError = errors && errors.find(e => e.path === 'author_id'); %>
+      <% if (authorError) { %>
+        <span class="error-message"><%= authorError.msg %></span>
+      <% } %>
+    </div>
+    
+    <div class="form-group">
+      <label for="status">สถานะ <span class="required">*</span></label>
+      <select 
+        id="status" 
+        name="status"
+        class="<%= errors && errors.find(e => e.path === 'status') ? 'error' : '' %>"
+        required
+      >
+        <option value="Available" <%= (formData.status === 'Available' || (book && book.status === 'Available')) ? 'selected' : '' %>>พร้อมให้ยืม</option>
+        <option value="Borrowed" <%= (formData.status === 'Borrowed' || (book && book.status === 'Borrowed')) ? 'selected' : '' %>>ถูกยืม</option>
+        <option value="Lost" <%= (formData.status === 'Lost' || (book && book.status === 'Lost')) ? 'selected' : '' %>>สูญหาย</option>
+      </select>
+      <% const statusError = errors && errors.find(e => e.path === 'status'); %>
+      <% if (statusError) { %>
+        <span class="error-message"><%= statusError.msg %></span>
+      <% } %>
+    </div>
+    
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">💾 บันทึก</button>
+      <a href="/books" class="btn btn-light">ยกเลิก</a>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

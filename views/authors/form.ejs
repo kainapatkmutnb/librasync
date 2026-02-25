@@ -1,0 +1,49 @@
+<%- include('../partials/header') %>
+
+<div class="form-container">
+  <h1><%= author ? 'แก้ไขผู้แต่ง' : 'เพิ่มผู้แต่ง' %></h1>
+  
+  <% if (errors && errors.length > 0) { %>
+    <div class="alert alert-error">
+      <ul>
+        <% errors.forEach(error => { %>
+          <li><%= error.msg %></li>
+        <% }) %>
+      </ul>
+    </div>
+  <% } %>
+  
+  <form method="POST" action="<%= author ? '/authors/' + author.id + '/update' : '/authors' %>">
+    <div class="form-group">
+      <label for="full_name">ชื่อ-นามสกุล <span class="required">*</span></label>
+      <input 
+        type="text" 
+        id="full_name" 
+        name="full_name" 
+        value="<%= formData.full_name || (author ? author.full_name : '') %>"
+        class="<%= errors && errors.find(e => e.path === 'full_name') ? 'error' : '' %>"
+        required
+      >
+      <% const nameError = errors && errors.find(e => e.path === 'full_name'); %>
+      <% if (nameError) { %>
+        <span class="error-message"><%= nameError.msg %></span>
+      <% } %>
+    </div>
+    
+    <div class="form-group">
+      <label for="biography">ประวัติย่อ</label>
+      <textarea 
+        id="biography" 
+        name="biography" 
+        rows="5"
+      ><%= formData.biography || (author ? author.biography : '') %></textarea>
+    </div>
+    
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">💾 บันทึก</button>
+      <a href="/authors" class="btn btn-light">ยกเลิก</a>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

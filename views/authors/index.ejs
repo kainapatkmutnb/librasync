@@ -1,0 +1,85 @@
+<%- include('../partials/header') %>
+
+<div class="page-header">
+  <h1>รายการผู้แต่ง</h1>
+  <a href="/authors/new" class="btn btn-primary no-print">➕ เพิ่มผู้แต่ง</a>
+</div>
+
+<!-- Search and Pagination Controls -->
+<div class="controls no-print">
+  <form class="search-form" method="GET" action="/authors">
+    <input type="text" name="search" placeholder="ค้นหาผู้แต่ง..." value="<%= search %>">
+    <button type="submit" class="btn btn-secondary">🔍 ค้นหา</button>
+    <% if (search) { %>
+      <a href="/authors" class="btn btn-light">ล้าง</a>
+    <% } %>
+  </form>
+  
+  <div class="limit-selector">
+    <label>แสดง:</label>
+    <select onchange="window.location.href='?page=1&search=<%= search %>&limit='+this.value">
+      <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
+      <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
+      <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
+    </select>
+    <span>รายการต่อหน้า</span>
+  </div>
+</div>
+
+<!-- Print Header (hidden on screen) -->
+<div class="print-header" style="display: none;">
+  <h2>รายงานรายการผู้แต่ง</h2>
+  <p>วันที่พิมพ์: <%= new Date().toLocaleDateString('th-TH') %></p>
+  <p>จำนวนทั้งหมด: <%= pagination.totalItems || 0 %> รายการ</p>
+</div>
+
+<!-- Authors Table -->
+<% if (authors && authors.length > 0) { %>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>ชื่อ-นามสกุล</th>
+        <th>ประวัติย่อ</th>
+        <th class="no-print actions-column">จัดการ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% authors.forEach((author, index) => { %>
+        <tr>
+          <td><%= (pagination.page - 1) * pagination.limit + index + 1 %></td>
+          <td><%= author.full_name %></td>
+          <td><%= author.biography ? author.biography.substring(0, 100) + (author.biography.length > 100 ? '...' : '') : '-' %></td>
+          <td class="no-print actions-column">
+            <a href="/authors/<%= author.id %>/edit" class="btn btn-sm btn-warning">แก้ไข</a>
+            <form action="/authors/<%= author.id %>/delete" method="POST" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบผู้แต่งนี้?')">
+              <button type="submit" class="btn btn-sm btn-danger">ลบ</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  
+  <!-- Pagination -->
+  <% if (pagination.totalPages > 1) { %>
+    <div class="pagination no-print">
+      <% if (pagination.hasPrev) { %>
+        <a href="?page=<%= pagination.page - 1 %>&search=<%= search %>&limit=<%= pagination.limit %>" class="btn btn-light">← ก่อนหน้า</a>
+      <% } %>
+      
+      <span class="page-info">หน้า <%= pagination.page %> จาก <%= pagination.totalPages %> (ทั้งหมด <%= pagination.totalItems %> รายการ)</span>
+      
+      <% if (pagination.hasNext) { %>
+        <a href="?page=<%= pagination.page + 1 %>&search=<%= search %>&limit=<%= pagination.limit %>" class="btn btn-light">ถัดไป →</a>
+      <% } %>
+    </div>
+  <% } %>
+<% } else { %>
+  <p class="no-data">ไม่พบข้อมูลผู้แต่ง</p>
+<% } %>
+
+<!-- Print Button -->
+<button onclick="window.print()" class="btn btn-secondary no-print" style="margin-top: 20px;">🖨️ พิมพ์รายงาน</button>
+
+<%- include('../partials/footer') %>

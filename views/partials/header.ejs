@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sukhumvit+Set:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">
+      <a href="/"><i class="fas fa-book-reader"></i> LibraSync</a>
+    </div>
+    <div class="nav-menu">
+      <a href="/" class="nav-link">แดชบอร์ด</a>
+      <a href="/authors" class="nav-link">ผู้แต่ง</a>
+      <a href="/books" class="nav-link">หนังสือ</a>
+      <a href="/members" class="nav-link">สมาชิก</a>
+      <a href="/loans" class="nav-link">การยืม-คืน</a>
+      <a href="/reports/active-loans" class="nav-link">รายงาน</a>
+    </div>
+    <button id="theme-toggle" class="btn-theme" title="สลับธีม"><i class="fas fa-moon"></i></button>
+  </nav>
+  
+  <div class="container">
+    <% if (typeof success !== 'undefined' && success.length > 0) { %>
+      <div class="alert alert-success">
+        <%= success %>
+      </div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error.length > 0) { %>
+      <div class="alert alert-error">
+        <%= error %>
+      </div>
+    <% } %>

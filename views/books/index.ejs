@@ -1,0 +1,93 @@
+<%- include('../partials/header') %>
+
+<div class="page-header">
+  <h1>รายการหนังสือ</h1>
+  <a href="/books/new" class="btn btn-primary no-print">➕ เพิ่มหนังสือ</a>
+</div>
+
+<!-- Search and Pagination Controls -->
+<div class="controls no-print">
+  <form class="search-form" method="GET" action="/books">
+    <input type="text" name="search" placeholder="ค้นหาหนังสือหรือ ISBN..." value="<%= search %>">
+    <button type="submit" class="btn btn-secondary">🔍 ค้นหา</button>
+    <% if (search) { %>
+      <a href="/books" class="btn btn-light">ล้าง</a>
+    <% } %>
+  </form>
+  
+  <div class="limit-selector">
+    <label>แสดง:</label>
+    <select onchange="window.location.href='?page=1&search=<%= search %>&limit='+this.value">
+      <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
+      <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
+      <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
+    </select>
+    <span>รายการต่อหน้า</span>
+  </div>
+</div>
+
+<!-- Print Header (hidden on screen) -->
+<div class="print-header" style="display: none;">
+  <h2>รายงานรายการหนังสือ</h2>
+  <p>วันที่พิมพ์: <%= new Date().toLocaleDateString('th-TH') %></p>
+  <p>จำนวนทั้งหมด: <%= pagination.totalItems || 0 %> รายการ</p>
+</div>
+
+<!-- Books Table -->
+<% if (books && books.length > 0) { %>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>ชื่อหนังสือ</th>
+        <th>ISBN</th>
+        <th>ผู้แต่ง</th>
+        <th>สถานะ</th>
+        <th class="no-print actions-column">จัดการ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% books.forEach((book, index) => { %>
+        <tr>
+          <td><%= (pagination.page - 1) * pagination.limit + index + 1 %></td>
+          <td><%= book.title %></td>
+          <td><%= book.isbn %></td>
+          <td><%= book.Author ? book.Author.full_name : 'ไม่ทราบ' %></td>
+          <td>
+            <span class="status-badge status-<%= book.status.toLowerCase() %>">
+              <%= book.status === 'Available' ? 'พร้อมให้ยืม' : book.status === 'Borrowed' ? 'ถูกยืม' : 'สูญหาย' %>
+            </span>
+          </td>
+          <td class="no-print actions-column">
+            <a href="/books/<%= book.id %>/edit" class="btn btn-sm btn-warning">แก้ไข</a>
+            <form action="/books/<%= book.id %>/delete" method="POST" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบหนังสือนี้?')">
+              <button type="submit" class="btn btn-sm btn-danger">ลบ</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  
+  <!-- Pagination -->
+  <% if (pagination.totalPages > 1) { %>
+    <div class="pagination no-print">
+      <% if (pagination.hasPrev) { %>
+        <a href="?page=<%= pagination.page - 1 %>&search=<%= search %>&limit=<%= pagination.limit %>" class="btn btn-light">← ก่อนหน้า</a>
+      <% } %>
+      
+      <span class="page-info">หน้า <%= pagination.page %> จาก <%= pagination.totalPages %> (ทั้งหมด <%= pagination.totalItems %> รายการ)</span>
+      
+      <% if (pagination.hasNext) { %>
+        <a href="?page=<%= pagination.page + 1 %>&search=<%= search %>&limit=<%= pagination.limit %>" class="btn btn-light">ถัดไป →</a>
+      <% } %>
+    </div>
+  <% } %>
+<% } else { %>
+  <p class="no-data">ไม่พบข้อมูลหนังสือ</p>
+<% } %>
+
+<!-- Print Button -->
+<button onclick="window.print()" class="btn btn-secondary no-print" style="margin-top: 20px;">🖨️ พิมพ์รายงาน</button>
+
+<%- include('../partials/footer') %>
