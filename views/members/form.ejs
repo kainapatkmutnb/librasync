@@ -24,6 +24,7 @@
         class="<%= errors && errors.find(e => e.path === 'full_name') ? 'error' : '' %>"
         required
       >
+      <span id="duplicate_name_error" class="error-message" style="display: none;"></span>
       <% const nameError = errors && errors.find(e => e.path === 'full_name'); %>
       <% if (nameError) { %>
         <span class="error-message"><%= nameError.msg %></span>
@@ -54,7 +55,9 @@
         name="phone_number" 
         value="<%= formData.phone_number || (member ? member.phone_number : '') %>"
         class="<%= errors && errors.find(e => e.path === 'phone_number') ? 'error' : '' %>"
-        placeholder="เช่น 0812345678"
+        placeholder="เช่น 081-234-5678"
+        inputmode="numeric"
+        maxlength="14"
         required
       >
       <% const phoneError = errors && errors.find(e => e.path === 'phone_number'); %>
@@ -85,5 +88,83 @@
     </div>
   </form>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const nameInput = document.getElementById('full_name');
+    const duplicateError = document.getElementById('duplicate_name_error');
+    const currentId = '<%= member ? member.id : "" %>';
+    const phoneInput = document.getElementById('phone_number');
+
+    if (nameInput && duplicateError) {
+      let debounceTimer;
+
+      const setDuplicateState = (message) => {
+        if (message) {
+          duplicateError.textContent = message;
+          duplicateError.style.display = 'block';
+          nameInput.setCustomValidity(message);
+          return;
+        }
+
+        duplicateError.textContent = '';
+        duplicateError.style.display = 'none';
+        nameInput.setCustomValidity('');
+      };
+
+      const checkDuplicate = async () => {
+        const value = (nameInput.value || '').trim();
+        if (value.length < 2) {
+          setDuplicateState('');
+          return;
+        }
+
+        try {
+          const query = new URLSearchParams({ value });
+          if (currentId) {
+            query.set('excludeId', currentId);
+          }
+
+          const response = await fetch(`/members/check-duplicate?${query.toString()}`);
+          const data = await response.json();
+          setDuplicateState(data.duplicate ? 'ชื่อสมาชิกนี้มีอยู่ในระบบแล้ว' : '');
+        } catch (error) {
+          setDuplicateState('');
+        }
+      };
+
+      nameInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(checkDuplicate, 250);
+      });
+
+      nameInput.addEventListener('blur', checkDuplicate);
+    }
+
+    if (!phoneInput) {
+      return;
+    }
+
+    const formatPhone = (value) => {
+      const digits = value.replace(/\D/g, '').slice(0, 10);
+
+      if (digits.length <= 3) {
+        return digits;
+      }
+
+      if (digits.length <= 6) {
+        return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+      }
+
+      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    };
+
+    phoneInput.value = formatPhone(phoneInput.value || '');
+
+    phoneInput.addEventListener('input', (event) => {
+      event.target.value = formatPhone(event.target.value || '');
+    });
+  });
+</script>
 
 <%- include('../partials/footer') %>

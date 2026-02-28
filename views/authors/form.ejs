@@ -24,6 +24,7 @@
         class="<%= errors && errors.find(e => e.path === 'full_name') ? 'error' : '' %>"
         required
       >
+      <span id="duplicate_name_error" class="error-message" style="display: none;"></span>
       <% const nameError = errors && errors.find(e => e.path === 'full_name'); %>
       <% if (nameError) { %>
         <span class="error-message"><%= nameError.msg %></span>
@@ -45,5 +46,60 @@
     </div>
   </form>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const nameInput = document.getElementById('full_name');
+    const duplicateError = document.getElementById('duplicate_name_error');
+    const currentId = '<%= author ? author.id : "" %>';
+
+    if (!nameInput || !duplicateError) {
+      return;
+    }
+
+    let debounceTimer;
+
+    const setDuplicateState = (message) => {
+      if (message) {
+        duplicateError.textContent = message;
+        duplicateError.style.display = 'block';
+        nameInput.setCustomValidity(message);
+        return;
+      }
+
+      duplicateError.textContent = '';
+      duplicateError.style.display = 'none';
+      nameInput.setCustomValidity('');
+    };
+
+    const checkDuplicate = async () => {
+      const value = (nameInput.value || '').trim();
+      if (value.length < 2) {
+        setDuplicateState('');
+        return;
+      }
+
+      try {
+        const query = new URLSearchParams({ value });
+        if (currentId) {
+          query.set('excludeId', currentId);
+        }
+
+        const response = await fetch(`/authors/check-duplicate?${query.toString()}`);
+        const data = await response.json();
+        setDuplicateState(data.duplicate ? 'ชื่อผู้แต่งนี้มีอยู่ในระบบแล้ว' : '');
+      } catch (error) {
+        setDuplicateState('');
+      }
+    };
+
+    nameInput.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(checkDuplicate, 250);
+    });
+
+    nameInput.addEventListener('blur', checkDuplicate);
+  });
+</script>
 
 <%- include('../partials/footer') %>

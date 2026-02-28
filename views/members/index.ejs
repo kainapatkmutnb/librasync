@@ -7,12 +7,17 @@
 
 <!-- Search and Pagination Controls -->
 <div class="controls no-print">
-  <form class="search-form" method="GET" action="/members">
-    <input type="text" name="search" placeholder="ค้นหาชื่อ, อีเมล หรือเบอร์โทร..." value="<%= search %>">
-    <button type="submit" class="btn btn-secondary">🔍 ค้นหา</button>
-    <% if (search) { %>
-      <a href="/members" class="btn btn-light">ล้าง</a>
-    <% } %>
+  <form class="report-filter-form" method="GET" action="/members">
+    <div class="report-filter-field">
+      <label for="member-search">ค้นหา</label>
+      <input id="member-search" type="text" name="search" placeholder="ค้นหาชื่อ, อีเมล หรือเบอร์โทร..." value="<%= search %>">
+    </div>
+    <div class="report-filter-actions">
+      <button type="submit" class="btn btn-secondary">🔍 ค้นหา</button>
+      <% if (search) { %>
+        <a href="/members" class="btn btn-light">ล้าง</a>
+      <% } %>
+    </div>
   </form>
   
   <div class="limit-selector">
@@ -35,10 +40,11 @@
 
 <!-- Members Table -->
 <% if (members && members.length > 0) { %>
+  <div class="table-center-shell">
   <table class="data-table">
     <thead>
       <tr>
-        <th>#</th>
+        <th>ลำดับที่</th>
         <th>ชื่อ-นามสกุล</th>
         <th>อีเมล</th>
         <th>เบอร์โทรศัพท์</th>
@@ -64,6 +70,7 @@
       <% }) %>
     </tbody>
   </table>
+  </div>
   
   <!-- Pagination -->
   <% if (pagination.totalPages > 1) { %>
@@ -82,8 +89,5 @@
 <% } else { %>
   <p class="no-data">ไม่พบข้อมูลสมาชิก</p>
 <% } %>
-
-<!-- Print Button -->
-<button onclick="window.print()" class="btn btn-secondary no-print" style="margin-top: 20px;">🖨️ พิมพ์รายงาน</button>
 
 <%- include('../partials/footer') %>

@@ -1,0 +1,120 @@
+<%- include('../partials/header') %>
+
+<div class="page-header">
+  <h1>รายงานประวัติยืม-คืนทั้งหมด</h1>
+</div>
+
+<div class="controls no-print report-controls">
+  <div class="report-tabs">
+    <a href="/reports/active-loans" class="btn btn-light">การยืมปัจจุบัน</a>
+    <a href="/reports/loan-history" class="btn btn-primary">ประวัติทั้งหมด</a>
+    <a href="/reports/member-borrow-summary" class="btn btn-light">สมาชิกยืมกี่ครั้ง</a>
+  </div>
+
+  <form class="report-filter-form loan-history-filter" method="GET" action="/reports/loan-history">
+    <div class="date-range-field">
+      <label>ช่วงวันที่ยืม</label>
+      <div class="date-range-inputs">
+        <input id="history-from" type="date" name="from" value="<%= filters && filters.from ? filters.from : '' %>" title="ตั้งแต่วันที่ยืม">
+        <span class="date-range-separator">ถึง</span>
+        <input id="history-to" type="date" name="to" value="<%= filters && filters.to ? filters.to : '' %>" title="ถึงวันที่ยืม">
+      </div>
+    </div>
+    <div class="date-range-field">
+      <label>ช่วงวันที่คืน</label>
+      <div class="date-range-inputs">
+        <input id="history-returned-from" type="date" name="returned_from" value="<%= filters && filters.returned_from ? filters.returned_from : '' %>" title="ตั้งแต่วันที่คืน">
+        <span class="date-range-separator">ถึง</span>
+        <input id="history-returned-to" type="date" name="returned_to" value="<%= filters && filters.returned_to ? filters.returned_to : '' %>" title="ถึงวันที่คืน">
+      </div>
+    </div>
+    <div class="report-filter-field">
+      <label for="history-member">สมาชิก</label>
+      <select id="history-member" name="member_id">
+        <option value="">สมาชิกทั้งหมด</option>
+        <% (members || []).forEach(member => { %>
+          <option value="<%= member.id %>" <%= String(filters && filters.member_id ? filters.member_id : '') === String(member.id) ? 'selected' : '' %>>
+            <%= member.full_name %>
+          </option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="report-filter-field">
+      <label for="history-status">สถานะ</label>
+      <select id="history-status" name="status">
+        <option value="all" <%= (filters && filters.status === 'all') ? 'selected' : '' %>>ทุกสถานะ</option>
+        <option value="active" <%= (filters && filters.status === 'active') ? 'selected' : '' %>>กำลังยืม</option>
+        <option value="returned" <%= (filters && filters.status === 'returned') ? 'selected' : '' %>>คืนแล้ว</option>
+      </select>
+    </div>
+    <div class="report-filter-actions">
+      <button type="submit" class="btn btn-success">กรอง</button>
+      <a href="/reports/loan-history" class="btn btn-neutral">ล้าง</a>
+      <a href="/reports/loan-history?from=<%= encodeURIComponent(filters && filters.from ? filters.from : '') %>&to=<%= encodeURIComponent(filters && filters.to ? filters.to : '') %>&returned_from=<%= encodeURIComponent(filters && filters.returned_from ? filters.returned_from : '') %>&returned_to=<%= encodeURIComponent(filters && filters.returned_to ? filters.returned_to : '') %>&member_id=<%= encodeURIComponent(filters && filters.member_id ? filters.member_id : '') %>&status=<%= encodeURIComponent(filters && filters.status ? filters.status : 'all') %>&format=csv" class="btn btn-light">⬇️ CSV</a>
+    </div>
+  </form>
+</div>
+
+<div class="print-header" style="display: none;">
+  <h2>รายงานประวัติยืม-คืนทั้งหมด</h2>
+  <p>วันที่พิมพ์: <%= printDate %></p>
+  <p>จำนวนทั้งหมด: <%= loanHistory ? loanHistory.length : 0 %> รายการ</p>
+</div>
+
+<%
+  const hasBorrowRange = filters && (filters.from || filters.to);
+  const displayLoanHistory = hasBorrowRange
+    ? (loanHistory || []).filter((loan) => !loan.return_date)
+    : (loanHistory || []);
+%>
+
+<% if (displayLoanHistory.length > 0) { %>
+  <div class="table-center-shell">
+  <table class="data-table loan-history-table">
+    <thead>
+      <tr>
+        <th>ลำดับที่</th>
+        <th>ชื่อหนังสือ</th>
+        <th>ผู้แต่ง</th>
+        <th>ผู้ยืม</th>
+        <th class="date-col">วันที่ยืม</th>
+        <th class="date-col">วันที่คืน</th>
+        <th>จำนวนวัน</th>
+        <th>สถานะ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% displayLoanHistory.forEach((loan, index) => { %>
+        <tr class="<%= !loan.return_date && loan.days_kept > 7 ? 'overdue' : '' %>">
+          <td><%= index + 1 %></td>
+          <td><%= loan.title %></td>
+          <td><%= loan.author %></td>
+          <td><%= loan.member %></td>
+          <% const nowDate = new Date(); %>
+          <% const effectiveReturned = loan.return_date && new Date(loan.return_date) <= nowDate; %>
+          <td class="date-col"><%= new Date(loan.borrow_date).toLocaleDateString('th-TH') %></td>
+          <td class="date-col"><%= effectiveReturned ? new Date(loan.return_date).toLocaleDateString('th-TH') : '-' %></td>
+          <td><%= loan.days_kept %> วัน</td>
+          <td>
+            <% if (effectiveReturned) { %>
+              <span class="status-badge status-returned">คืนแล้ว</span>
+            <% } else { %>
+              <span class="status-badge status-borrowed">กำลังยืม</span>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="report-summary">
+    <h3>สรุป</h3>
+    <p>รายการยืมทั้งหมด: <strong><%= displayLoanHistory.length %></strong> รายการ</p>
+    <p>รายการที่ยังไม่คืน: <strong class="text-danger"><%= displayLoanHistory.filter(l => !(l.return_date && new Date(l.return_date) <= new Date())).length %></strong> รายการ</p>
+  </div>
+<% } else { %>
+  <p class="no-data">ยังไม่มีประวัติยืม-คืน</p>
+<% } %>
+
+<%- include('../partials/footer') %>

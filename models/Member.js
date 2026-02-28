@@ -13,7 +13,8 @@ const Member = sequelize.define('Member', {
   },
   email: {
     type: DataTypes.STRING(255),
-    allowNull: false
+    allowNull: false,
+    unique: true
   },
   phone_number: {
     type: DataTypes.STRING(20),

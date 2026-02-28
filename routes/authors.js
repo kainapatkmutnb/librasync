@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Author, Book } = require('../models');
-const { Op } = require('sequelize');
+const { Op, fn, col, where } = require('sequelize');
 const { validate, authorValidation } = require('../middleware/validate');
 
 // List authors with search and pagination
@@ -38,9 +38,7 @@ router.get('/', async (req, res) => {
         hasNext: page < totalPages,
         hasPrev: page > 1
       },
-      search,
-      errors: req.flash('errors'),
-      success: req.flash('success')
+      search
     });
   } catch (error) {
     console.error(error);
@@ -64,8 +62,36 @@ router.get('/new', (req, res) => {
   });
 });
 
+// Realtime duplicate check for author name
+router.get('/check-duplicate', async (req, res) => {
+  try {
+    const value = String(req.query.value || '').trim().toLowerCase();
+    const excludeId = Number.parseInt(req.query.excludeId, 10);
+
+    if (!value) {
+      return res.json({ duplicate: false });
+    }
+
+    const conditions = [where(fn('lower', col('full_name')), value)];
+
+    if (Number.isInteger(excludeId) && excludeId > 0) {
+      conditions.push({ id: { [Op.ne]: excludeId } });
+    }
+
+    const existing = await Author.findOne({
+      where: { [Op.and]: conditions },
+      attributes: ['id']
+    });
+
+    return res.json({ duplicate: Boolean(existing) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ duplicate: false });
+  }
+});
+
 // Create author
-router.post('/', authorValidation, validate(authorValidation), async (req, res) => {
+router.post('/', validate(authorValidation), async (req, res) => {
   try {
     await Author.create({
       full_name: req.body.full_name,
@@ -102,7 +128,7 @@ router.get('/:id/edit', async (req, res) => {
 });
 
 // Update author
-router.post('/:id/update', authorValidation, validate(authorValidation), async (req, res) => {
+router.post('/:id/update', validate(authorValidation), async (req, res) => {
   try {
     const author = await Author.findByPk(req.params.id);
     if (!author) {

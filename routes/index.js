@@ -7,8 +7,9 @@ const { Op } = require('sequelize');
 router.get('/', async (req, res) => {
   try {
     // Stats
-    const totalBooks = await Book.count();
-    const availableBooks = await Book.count({ where: { status: 'Available' } });
+    const totalBooks = Number(await Book.sum('total_copies')) || 0;
+    const borrowedBooks = Number(await Book.sum('borrowed_copies')) || 0;
+    const availableBooks = Math.max(0, totalBooks - borrowedBooks);
     const totalMembers = await Member.count();
     const activeLoans = await LoanRecord.count({ where: { return_date: null } });
     

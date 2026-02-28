@@ -13,7 +13,8 @@ const Book = sequelize.define('Book', {
   },
   isbn: {
     type: DataTypes.STRING(13),
-    allowNull: false
+    allowNull: false,
+    unique: true
   },
   author_id: {
     type: DataTypes.INTEGER,
@@ -26,6 +27,22 @@ const Book = sequelize.define('Book', {
   status: {
     type: DataTypes.ENUM('Available', 'Borrowed', 'Lost'),
     defaultValue: 'Available'
+  },
+  total_copies: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 1,
+    validate: {
+      min: 1
+    }
+  },
+  borrowed_copies: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+    validate: {
+      min: 0
+    }
   }
 }, {
   tableName: 'Books',

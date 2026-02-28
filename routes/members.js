@@ -1,8 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const { Member, LoanRecord } = require('../models');
-const { Op } = require('sequelize');
+const { Op, fn, col, where } = require('sequelize');
 const { validate, memberValidation } = require('../middleware/validate');
+
+const normalizePhoneNumber = (input) => {
+  const digits = String(input || '').replace(/[^0-9]/g, '');
+
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  if (digits.length === 9) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  if (digits.length > 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+
+  return digits;
+};
 
 // List members with search and pagination
 router.get('/', async (req, res) => {
@@ -40,9 +58,7 @@ router.get('/', async (req, res) => {
         hasNext: page < totalPages,
         hasPrev: page > 1
       },
-      search,
-      errors: req.flash('errors'),
-      success: req.flash('success')
+      search
     });
   } catch (error) {
     console.error(error);
@@ -66,8 +82,39 @@ router.get('/new', (req, res) => {
   });
 });
 
+// Realtime duplicate check for member name
+router.get('/check-duplicate', async (req, res) => {
+  try {
+    const value = String(req.query.value || '').trim().toLowerCase();
+    const excludeId = Number.parseInt(req.query.excludeId, 10);
+
+    if (!value) {
+      return res.json({ duplicate: false });
+    }
+
+    const conditions = [where(fn('lower', col('full_name')), value)];
+
+    if (Number.isInteger(excludeId) && excludeId > 0) {
+      conditions.push({ id: { [Op.ne]: excludeId } });
+    }
+
+    const existing = await Member.findOne({
+      where: { [Op.and]: conditions },
+      attributes: ['id']
+    });
+
+    return res.json({ duplicate: Boolean(existing) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ duplicate: false });
+  }
+});
+
 // Create member
-router.post('/', memberValidation, validate(memberValidation), async (req, res) => {
+router.post('/', (req, res, next) => {
+  req.body.phone_number = normalizePhoneNumber(req.body.phone_number);
+  next();
+}, validate(memberValidation), async (req, res) => {
   try {
     await Member.create({
       full_name: req.body.full_name,
@@ -79,6 +126,10 @@ router.post('/', memberValidation, validate(memberValidation), async (req, res) 
     res.redirect('/members');
   } catch (error) {
     console.error(error);
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      req.flash('error', 'อีเมลนี้มีอยู่ในระบบแล้ว');
+      return res.redirect('/members/new');
+    }
     req.flash('error', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
     res.redirect('/members/new');
   }
@@ -106,7 +157,10 @@ router.get('/:id/edit', async (req, res) => {
 });
 
 // Update member
-router.post('/:id/update', memberValidation, validate(memberValidation), async (req, res) => {
+router.post('/:id/update', (req, res, next) => {
+  req.body.phone_number = normalizePhoneNumber(req.body.phone_number);
+  next();
+}, validate(memberValidation), async (req, res) => {
   try {
     const member = await Member.findByPk(req.params.id);
     if (!member) {
@@ -123,6 +177,10 @@ router.post('/:id/update', memberValidation, validate(memberValidation), async (
     res.redirect('/members');
   } catch (error) {
     console.error(error);
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      req.flash('error', 'อีเมลนี้มีอยู่ในระบบแล้ว');
+      return res.redirect(`/members/${req.params.id}/edit`);
+    }
     req.flash('error', 'เกิดข้อผิดพลาดในการอัพเดทข้อมูล');
     res.redirect(`/members/${req.params.id}/edit`);
   }
@@ -140,7 +198,7 @@ router.post('/:id/delete', async (req, res) => {
     // Check if member has loan records
     const loanCount = await LoanRecord.count({ where: { member_id: req.params.id } });
     if (loanCount > 0) {
-      req.flash('error', 'ไม่สามารถลบสมาชิกนี้ได้เนื่องจากมีประวัติการยืม');
+      req.flash('error', 'ไม่สามารถลบสมาชิกนี้ได้เนื่องจากมีประวัติยืม-คืน');
       return res.redirect('/members');
     }
     

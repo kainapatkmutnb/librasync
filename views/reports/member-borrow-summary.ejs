@@ -1,0 +1,144 @@
+<%- include('../partials/header') %>
+
+<div class="page-header">
+  <h1>รายงานสมาชิกยืมกี่ครั้ง</h1>
+</div>
+
+<div class="controls no-print report-controls">
+  <div class="report-tabs">
+    <a href="/reports/active-loans" class="btn btn-light">การยืมปัจจุบัน</a>
+    <a href="/reports/loan-history" class="btn btn-light">ประวัติทั้งหมด</a>
+    <a href="/reports/member-borrow-summary" class="btn btn-primary">สมาชิกยืมกี่ครั้ง</a>
+  </div>
+
+  <form class="report-filter-form" method="GET" action="/reports/member-borrow-summary">
+    <div class="report-filter-field">
+      <label for="member-summary-from">วันที่ยืม (เริ่ม)</label>
+      <input id="member-summary-from" type="date" name="from" value="<%= filters && filters.from ? filters.from : '' %>" title="ตั้งแต่วันที่ยืม">
+    </div>
+    <div class="report-filter-field">
+      <label for="member-summary-to">วันที่ยืม (สิ้นสุด)</label>
+      <input id="member-summary-to" type="date" name="to" value="<%= filters && filters.to ? filters.to : '' %>" title="ถึงวันที่ยืม">
+    </div>
+    <div class="report-filter-field">
+      <label for="member-summary-keyword">ชื่อ/อีเมลสมาชิก</label>
+      <input id="member-summary-keyword" type="text" name="keyword" placeholder="ค้นหาชื่อ/อีเมล" value="<%= filters && filters.keyword ? filters.keyword : '' %>">
+    </div>
+    <div class="report-filter-field">
+      <label for="member-summary-min-borrows">ยืมขั้นต่ำ (ครั้ง)</label>
+      <input id="member-summary-min-borrows" type="number" min="0" name="min_borrows" placeholder="ยืมขั้นต่ำ" value="<%= filters && Number.isInteger(filters.min_borrows) ? filters.min_borrows : (filters && filters.min_borrows ? filters.min_borrows : 0) %>">
+    </div>
+    <div class="report-filter-field">
+      <label for="member-summary-detail-member">ดูรายละเอียดสมาชิก</label>
+      <select id="member-summary-detail-member" name="detail_member_id">
+        <option value="">ไม่เลือก</option>
+        <% (members || []).forEach(member => { %>
+          <option value="<%= member.id %>" <%= String(filters && filters.detail_member_id ? filters.detail_member_id : '') === String(member.id) ? 'selected' : '' %>>
+            <%= member.full_name %>
+          </option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="report-filter-actions">
+      <button type="submit" class="btn btn-success">กรอง</button>
+      <a href="/reports/member-borrow-summary" class="btn btn-neutral">ล้าง</a>
+      <a href="/reports/member-borrow-summary?from=<%= encodeURIComponent(filters && filters.from ? filters.from : '') %>&to=<%= encodeURIComponent(filters && filters.to ? filters.to : '') %>&keyword=<%= encodeURIComponent(filters && filters.keyword ? filters.keyword : '') %>&min_borrows=<%= encodeURIComponent(filters && filters.min_borrows ? filters.min_borrows : 0) %>&detail_member_id=<%= encodeURIComponent(filters && filters.detail_member_id ? filters.detail_member_id : '') %>&format=csv" class="btn btn-light">⬇️ CSV</a>
+    </div>
+  </form>
+</div>
+
+<div class="print-header" style="display: none;">
+  <h2>รายงานสมาชิกยืมกี่ครั้ง</h2>
+  <p>วันที่พิมพ์: <%= printDate %></p>
+  <p>จำนวนสมาชิกทั้งหมด: <%= memberBorrowSummary ? memberBorrowSummary.length : 0 %> คน</p>
+</div>
+
+<% if (memberBorrowSummary && memberBorrowSummary.length > 0) { %>
+  <div class="table-center-shell">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ลำดับที่</th>
+        <th>ชื่อสมาชิก</th>
+        <th>อีเมล</th>
+        <th>ยืมทั้งหมด</th>
+        <th>กำลังยืม</th>
+        <th>ล่าสุดที่ยืม</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% memberBorrowSummary.forEach((member, index) => { %>
+        <tr>
+          <td><%= index + 1 %></td>
+          <td><%= member.full_name %></td>
+          <td><%= member.email %></td>
+          <td><strong><%= member.total_borrows %></strong> ครั้ง</td>
+          <td>
+            <% if (Number(member.active_borrows) > 0) { %>
+              <span class="status-badge status-borrowed"><%= member.active_borrows %> รายการ</span>
+            <% } else { %>
+              <span class="status-badge status-returned">0 รายการ</span>
+            <% } %>
+          </td>
+          <td><%= member.last_borrow_date ? new Date(member.last_borrow_date).toLocaleDateString('th-TH') : '-' %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="report-summary">
+    <h3>สรุป</h3>
+    <p>ยอดการยืมรวมทุกสมาชิก: <strong><%= memberBorrowSummary.reduce((sum, m) => sum + Number(m.total_borrows || 0), 0) %></strong> ครั้ง</p>
+    <p>สมาชิกที่เคยยืมหนังสือ: <strong><%= memberBorrowSummary.filter(m => Number(m.total_borrows) > 0).length %></strong> คน</p>
+  </div>
+<% } else { %>
+  <p class="no-data">ยังไม่มีข้อมูลสมาชิก</p>
+<% } %>
+
+<% if (filters && filters.detail_member_id) { %>
+  <div class="report-summary">
+    <h3>รายละเอียดการยืมของสมาชิก</h3>
+    <% if (detailMember) { %>
+      <p>สมาชิก: <strong><%= detailMember.full_name %></strong> (<%= detailMember.email %>)</p>
+    <% } %>
+    <p>จำนวนชื่อหนังสือที่เคยยืม: <strong><%= (detailMemberBooks || []).length %></strong> เล่ม</p>
+  </div>
+
+  <% if (detailMemberBooks && detailMemberBooks.length > 0) { %>
+    <div class="table-center-shell">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ลำดับที่</th>
+          <th>ชื่อหนังสือ</th>
+          <th>ผู้แต่ง</th>
+          <th>ยืมทั้งหมด</th>
+          <th>กำลังยืม</th>
+          <th>วันที่ยืมครั้งแรก</th>
+          <th>วันที่ยืมล่าสุด</th>
+          <th>วันที่คืนล่าสุด</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% detailMemberBooks.forEach((item, index) => { %>
+          <tr>
+            <td><%= index + 1 %></td>
+            <td><%= item.title %></td>
+            <td><%= item.author %></td>
+            <td><strong><%= item.total_borrows %></strong> ครั้ง</td>
+            <td><%= item.active_borrows %> รายการ</td>
+            <td><%= item.first_borrow_date ? new Date(item.first_borrow_date).toLocaleDateString('th-TH') : '-' %></td>
+            <td><%= item.last_borrow_date ? new Date(item.last_borrow_date).toLocaleDateString('th-TH') : '-' %></td>
+            <td><%= item.last_return_date ? new Date(item.last_return_date).toLocaleDateString('th-TH') : '-' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+  <% } else { %>
+    <p class="no-data">สมาชิกคนนี้ยังไม่มีประวัติยืมในช่วงเงื่อนไขที่เลือก</p>
+  <% } %>
+<% } %>
+
+<%- include('../partials/footer') %>

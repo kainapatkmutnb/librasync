@@ -26,7 +26,7 @@
           <option value="">-- เลือกหนังสือ --</option>
           <% availableBooks.forEach(book => { %>
             <option value="<%= book.id %>" <%= formData.book_id == book.id ? 'selected' : '' %>>
-              <%= book.title %> - <%= book.Author ? book.Author.full_name : 'ไม่ทราบผู้แต่ง' %>
+              <%= book.title %> - <%= book.Author ? book.Author.full_name : 'ไม่ทราบผู้แต่ง' %> (คงเหลือ <%= book.available_copies %> เล่ม)
             </option>
           <% }) %>
         </select>

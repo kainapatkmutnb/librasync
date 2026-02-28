@@ -7,12 +7,17 @@
 
 <!-- Search and Pagination Controls -->
 <div class="controls no-print">
-  <form class="search-form" method="GET" action="/authors">
-    <input type="text" name="search" placeholder="ค้นหาผู้แต่ง..." value="<%= search %>">
-    <button type="submit" class="btn btn-secondary">🔍 ค้นหา</button>
-    <% if (search) { %>
-      <a href="/authors" class="btn btn-light">ล้าง</a>
-    <% } %>
+  <form class="report-filter-form" method="GET" action="/authors">
+    <div class="report-filter-field">
+      <label for="author-search">ค้นหา</label>
+      <input id="author-search" type="text" name="search" placeholder="ค้นหาผู้แต่ง..." value="<%= search %>">
+    </div>
+    <div class="report-filter-actions">
+      <button type="submit" class="btn btn-secondary">🔍 ค้นหา</button>
+      <% if (search) { %>
+        <a href="/authors" class="btn btn-light">ล้าง</a>
+      <% } %>
+    </div>
   </form>
   
   <div class="limit-selector">
@@ -35,31 +40,40 @@
 
 <!-- Authors Table -->
 <% if (authors && authors.length > 0) { %>
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>ชื่อ-นามสกุล</th>
-        <th>ประวัติย่อ</th>
-        <th class="no-print actions-column">จัดการ</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% authors.forEach((author, index) => { %>
+  <div class="table-center-shell">
+    <table class="data-table authors-table">
+      <thead>
         <tr>
-          <td><%= (pagination.page - 1) * pagination.limit + index + 1 %></td>
-          <td><%= author.full_name %></td>
-          <td><%= author.biography ? author.biography.substring(0, 100) + (author.biography.length > 100 ? '...' : '') : '-' %></td>
-          <td class="no-print actions-column">
-            <a href="/authors/<%= author.id %>/edit" class="btn btn-sm btn-warning">แก้ไข</a>
-            <form action="/authors/<%= author.id %>/delete" method="POST" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบผู้แต่งนี้?')">
-              <button type="submit" class="btn btn-sm btn-danger">ลบ</button>
-            </form>
-          </td>
+          <th>ลำดับที่</th>
+          <th>ชื่อ-นามสกุล</th>
+          <th>ประวัติย่อ</th>
+          <th class="no-print actions-column">จัดการ</th>
         </tr>
-      <% }) %>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        <% authors.forEach((author, index) => { %>
+          <% const biography = author.biography ? author.biography.trim() : ''; %>
+          <tr>
+            <td><%= (pagination.page - 1) * pagination.limit + index + 1 %></td>
+            <td><%= author.full_name %></td>
+            <td>
+              <% if (!biography) { %>
+                -
+              <% } else { %>
+                <div class="bio-full-text"><%= biography %></div>
+              <% } %>
+            </td>
+            <td class="no-print actions-column">
+              <a href="/authors/<%= author.id %>/edit" class="btn btn-sm btn-warning">แก้ไข</a>
+              <form action="/authors/<%= author.id %>/delete" method="POST" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบผู้แต่งนี้?')">
+                <button type="submit" class="btn btn-sm btn-danger">ลบ</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
   
   <!-- Pagination -->
   <% if (pagination.totalPages > 1) { %>
@@ -78,8 +92,5 @@
 <% } else { %>
   <p class="no-data">ไม่พบข้อมูลผู้แต่ง</p>
 <% } %>
-
-<!-- Print Button -->
-<button onclick="window.print()" class="btn btn-secondary no-print" style="margin-top: 20px;">🖨️ พิมพ์รายงาน</button>
 
 <%- include('../partials/footer') %>

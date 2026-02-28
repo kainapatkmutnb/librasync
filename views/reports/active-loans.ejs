@@ -2,7 +2,41 @@
 
 <div class="page-header">
   <h1>รายงานการยืมปัจจุบัน</h1>
-  <button onclick="window.print()" class="btn btn-secondary no-print">🖨️ พิมพ์รายงาน</button>
+</div>
+
+<div class="controls no-print report-controls">
+  <div class="report-tabs">
+    <a href="/reports/active-loans" class="btn btn-primary">การยืมปัจจุบัน</a>
+    <a href="/reports/loan-history" class="btn btn-light">ประวัติทั้งหมด</a>
+    <a href="/reports/member-borrow-summary" class="btn btn-light">สมาชิกยืมกี่ครั้ง</a>
+  </div>
+
+  <form class="report-filter-form" method="GET" action="/reports/active-loans">
+    <div class="report-filter-field">
+      <label for="active-from">วันที่ยืม (เริ่ม)</label>
+      <input id="active-from" type="date" name="from" value="<%= filters && filters.from ? filters.from : '' %>" title="ตั้งแต่วันที่ยืม">
+    </div>
+    <div class="report-filter-field">
+      <label for="active-to">วันที่ยืม (สิ้นสุด)</label>
+      <input id="active-to" type="date" name="to" value="<%= filters && filters.to ? filters.to : '' %>" title="ถึงวันที่ยืม">
+    </div>
+    <div class="report-filter-field">
+      <label for="active-member">สมาชิก</label>
+      <select id="active-member" name="member_id">
+        <option value="">สมาชิกทั้งหมด</option>
+        <% (members || []).forEach(member => { %>
+          <option value="<%= member.id %>" <%= String(filters && filters.member_id ? filters.member_id : '') === String(member.id) ? 'selected' : '' %>>
+            <%= member.full_name %>
+          </option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="report-filter-actions">
+      <button type="submit" class="btn btn-success">กรอง</button>
+      <a href="/reports/active-loans" class="btn btn-neutral">ล้าง</a>
+      <a href="/reports/active-loans?from=<%= encodeURIComponent(filters && filters.from ? filters.from : '') %>&to=<%= encodeURIComponent(filters && filters.to ? filters.to : '') %>&member_id=<%= encodeURIComponent(filters && filters.member_id ? filters.member_id : '') %>&format=csv" class="btn btn-light">⬇️ CSV</a>
+    </div>
+  </form>
 </div>
 
 <!-- Print Header -->
@@ -14,10 +48,11 @@
 
 <!-- Active Loans Table -->
 <% if (activeLoans && activeLoans.length > 0) { %>
+  <div class="table-center-shell">
   <table class="data-table">
     <thead>
       <tr>
-        <th>#</th>
+        <th>ลำดับที่</th>
         <th>ชื่อหนังสือ</th>
         <th>ผู้แต่ง</th>
         <th>ผู้ยืม</th>
@@ -51,6 +86,7 @@
       <% }) %>
     </tbody>
   </table>
+  </div>
   
   <!-- Summary -->
   <div class="report-summary">

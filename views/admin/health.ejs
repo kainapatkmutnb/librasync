@@ -1,0 +1,115 @@
+<%- include('../partials/header') %>
+
+<div class="page-header">
+  <h1>ระบบตรวจสุขภาพข้อมูล</h1>
+  <div class="controls no-print" style="margin: 0;">
+    <a href="/admin/health" class="btn btn-secondary">รีเฟรช</a>
+  </div>
+</div>
+
+<div class="report-summary">
+  <p>เวลาตรวจล่าสุด: <strong><%= reportTime %></strong></p>
+  <p>
+    สถานะฐานข้อมูล:
+    <% if (integrityStatus === 'ok') { %>
+      <span class="status-badge status-returned">ปกติ (ok)</span>
+    <% } else { %>
+      <span class="status-badge status-lost"><%= integrityStatus %></span>
+    <% } %>
+  </p>
+</div>
+
+<h2 style="margin: 1.5rem 0 1rem;">สถานะดัชนีที่จำเป็น</h2>
+<div class="table-center-shell">
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>ตาราง</th>
+      <th>ดัชนี</th>
+      <th>ประเภท</th>
+      <th>สถานะ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% indexStatus.forEach(index => { %>
+      <tr>
+        <td><%= index.table %></td>
+        <td><%= index.name %></td>
+        <td><%= index.unique ? 'UNIQUE' : 'INDEX' %></td>
+        <td>
+          <% if (index.exists) { %>
+            <span class="status-badge status-returned">พร้อมใช้งาน</span>
+          <% } else { %>
+            <span class="status-badge status-lost">ขาดหาย</span>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+</div>
+
+<h2 style="margin: 1.5rem 0 1rem;">ข้อมูลซ้ำที่ควรไม่มี</h2>
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-content">
+      <h3>ISBN ซ้ำ</h3>
+      <p class="stat-number"><%= duplicateIsbn.length %></p>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-content">
+      <h3>อีเมลซ้ำ</h3>
+      <p class="stat-number"><%= duplicateEmails.length %></p>
+    </div>
+  </div>
+</div>
+
+<h2 style="margin: 1.5rem 0 1rem;">ความสอดคล้องข้อมูล</h2>
+<div class="table-center-shell">
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>รายการตรวจ</th>
+      <th>จำนวนที่พบ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>จำนวน active loan ไม่เท่ากับ borrowed_copies</td>
+      <td><%= consistency.activeLoanMismatch %></td>
+    </tr>
+    <tr>
+      <td>สถานะหนังสือไม่สอดคล้องกับจำนวนคงเหลือ</td>
+      <td><%= consistency.statusMismatch %></td>
+    </tr>
+    <tr>
+      <td>ค่าจำนวนเล่มผิดช่วง (borrowed มากกว่า total หรือค่าติดลบ)</td>
+      <td><%= consistency.copyRangeMismatch %></td>
+    </tr>
+    <tr>
+      <td>LoanRecord อ้างถึงหนังสือที่หายไป</td>
+      <td><%= consistency.orphanLoanBook %></td>
+    </tr>
+    <tr>
+      <td>LoanRecord อ้างถึงสมาชิกที่หายไป</td>
+      <td><%= consistency.orphanLoanMember %></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2 style="margin: 1.5rem 0 1rem;">Danger Zone</h2>
+<div class="danger-zone">
+  <p>การดำเนินการนี้จะลบข้อมูลทั้งหมดใน Authors, Books, Members และ LoanRecords</p>
+  <p>ระบบจะสำรองไฟล์ฐานข้อมูลให้อัตโนมัติในโฟลเดอร์ backups ก่อนลบ</p>
+  <form method="POST" action="/admin/reset-data" class="danger-zone-form" onsubmit="return confirm('ยืนยันล้างข้อมูลทั้งหมด? การกระทำนี้ย้อนกลับไม่ได้จากหน้าเว็บ');">
+    <div class="report-filter-field">
+      <label for="confirmation_code">รหัสยืนยัน</label>
+      <input id="confirmation_code" name="confirmation_code" type="text" placeholder="กรอกรหัสยืนยัน" required>
+    </div>
+    <button type="submit" class="btn btn-danger">ล้างข้อมูลทั้งหมด</button>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

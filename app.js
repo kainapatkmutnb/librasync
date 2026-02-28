@@ -1,7 +1,11 @@
 const express = require('express');
 const session = require('express-session');
 const flash = require('connect-flash');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { QueryTypes } = require('sequelize');
 const path = require('path');
+require('dotenv').config();
 
 // Import routes
 const indexRoutes = require('./routes/index');
@@ -10,28 +14,54 @@ const bookRoutes = require('./routes/books');
 const memberRoutes = require('./routes/members');
 const loanRoutes = require('./routes/loans');
 const reportRoutes = require('./routes/reports');
+const adminRoutes = require('./routes/admin');
 
 // Import models for syncing
 const { sequelize } = require('./models');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const isProduction = process.env.NODE_ENV === 'production';
+const enableSeedOnStart = process.env.ENABLE_SEED === 'true';
+
+if (isProduction) {
+  app.set('trust proxy', 1);
+}
 
 // View engine setup
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // Middleware
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
+
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false
+}));
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Session configuration
+const sessionSecret = process.env.SESSION_SECRET || 'dev-only-change-me';
+
 app.use(session({
-  secret: 'librasync-secret-key-2025',
+  secret: sessionSecret,
   resave: false,
-  saveUninitialized: true,
-  cookie: { secure: false }
+  saveUninitialized: false,
+  cookie: {
+    secure: isProduction,
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 24
+  }
 }));
 
 // Flash messages
@@ -51,6 +81,7 @@ app.use('/books', bookRoutes);
 app.use('/members', memberRoutes);
 app.use('/loans', loanRoutes);
 app.use('/reports', reportRoutes);
+app.use('/admin', adminRoutes);
 
 // 404 Error Handler
 app.use((req, res) => {
@@ -75,18 +106,175 @@ app.use((err, req, res, next) => {
 async function startServer() {
   try {
     // Sync all models
-    await sequelize.sync({ alter: true });
+    await sequelize.sync();
+    await ensureDataConstraints();
     console.log('Database synchronized successfully');
     
-    // Seed initial data if needed
-    await seedData();
+    // Seed initial data if explicitly enabled
+    if (enableSeedOnStart) {
+      await seedData();
+    } else {
+      console.log('Seed on start disabled (set ENABLE_SEED=true to enable).');
+    }
     
     // Start server
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`LibraSync server is running on http://localhost:${PORT}`);
+    });
+
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use.`);
+        console.error('Close the existing process, then run npm start or npm run dev again.');
+        process.exit(1);
+      }
+
+      console.error('Server failed to start:', error);
+      process.exit(1);
     });
   } catch (error) {
     console.error('Unable to start server:', error);
+  }
+}
+
+async function ensureDataConstraints() {
+  const migrationStatements = [
+    'ALTER TABLE Books ADD COLUMN total_copies INTEGER NOT NULL DEFAULT 1;',
+    'ALTER TABLE Books ADD COLUMN borrowed_copies INTEGER NOT NULL DEFAULT 0;'
+  ];
+
+  for (const statement of migrationStatements) {
+    try {
+      await sequelize.query(statement);
+    } catch (error) {
+      if (!/duplicate column name/i.test(error.message)) {
+        console.warn('Schema update warning:', error.message);
+      }
+    }
+  }
+
+  const dataFixStatements = [
+    'UPDATE Books SET total_copies = 1 WHERE total_copies IS NULL OR total_copies < 1;',
+    `
+      UPDATE Books
+      SET borrowed_copies = (
+        SELECT COUNT(*)
+        FROM LoanRecords lr
+        WHERE lr.book_id = Books.id
+          AND lr.return_date IS NULL
+      );
+    `,
+    'UPDATE Books SET borrowed_copies = total_copies WHERE borrowed_copies > total_copies;',
+    `
+      UPDATE Books
+      SET status = CASE
+        WHEN status = 'Lost' THEN 'Lost'
+        WHEN borrowed_copies >= total_copies THEN 'Borrowed'
+        ELSE 'Available'
+      END;
+    `
+  ];
+
+  for (const statement of dataFixStatements) {
+    try {
+      await sequelize.query(statement);
+    } catch (error) {
+      console.warn('Data fix warning:', error.message);
+    }
+  }
+
+  const statements = [
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_books_isbn_unique ON Books(isbn);',
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_members_email_unique ON Members(email);',
+    'CREATE INDEX IF NOT EXISTS idx_loanrecords_book_return ON LoanRecords(book_id, return_date);',
+    'CREATE INDEX IF NOT EXISTS idx_loanrecords_member_return ON LoanRecords(member_id, return_date);',
+    'CREATE INDEX IF NOT EXISTS idx_loanrecords_borrow_date ON LoanRecords(borrow_date);'
+  ];
+
+  for (const statement of statements) {
+    try {
+      await sequelize.query(statement);
+    } catch (error) {
+      console.warn('Constraint/index setup warning:', error.message);
+    }
+  }
+
+  await runOneTimeIsbnNormalizationMigration();
+}
+
+function formatIsbnByDigits(digitsOnly) {
+  if (digitsOnly.length === 13) {
+    return `${digitsOnly.slice(0, 3)}-${digitsOnly.slice(3, 4)}-${digitsOnly.slice(4, 6)}-${digitsOnly.slice(6, 12)}-${digitsOnly.slice(12)}`;
+  }
+
+  if (digitsOnly.length === 10) {
+    return `${digitsOnly.slice(0, 1)}-${digitsOnly.slice(1, 4)}-${digitsOnly.slice(4, 9)}-${digitsOnly.slice(9)}`;
+  }
+
+  return digitsOnly;
+}
+
+function normalizeIsbnValue(isbn) {
+  const digitsOnly = String(isbn || '').replace(/[^0-9]/g, '');
+  return formatIsbnByDigits(digitsOnly);
+}
+
+async function runOneTimeIsbnNormalizationMigration() {
+  const migrationName = '2026-02-28-normalize-isbn-v1';
+
+  try {
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS SystemMigrations (
+        name TEXT PRIMARY KEY,
+        executed_at TEXT NOT NULL
+      );
+    `);
+
+    const existingMigration = await sequelize.query(
+      'SELECT name FROM SystemMigrations WHERE name = :migrationName LIMIT 1;',
+      {
+        type: QueryTypes.SELECT,
+        replacements: { migrationName }
+      }
+    );
+
+    if (existingMigration.length > 0) {
+      return;
+    }
+
+    const books = await sequelize.query(
+      'SELECT id, isbn FROM Books WHERE isbn IS NOT NULL AND TRIM(isbn) <> "";',
+      { type: QueryTypes.SELECT }
+    );
+
+    for (const book of books) {
+      const normalizedIsbn = normalizeIsbnValue(book.isbn);
+      if (!normalizedIsbn || normalizedIsbn === book.isbn) {
+        continue;
+      }
+
+      await sequelize.query(
+        'UPDATE Books SET isbn = :normalizedIsbn WHERE id = :bookId;',
+        {
+          replacements: {
+            normalizedIsbn,
+            bookId: book.id
+          }
+        }
+      );
+    }
+
+    await sequelize.query(
+      'INSERT INTO SystemMigrations (name, executed_at) VALUES (:migrationName, :executedAt);',
+      {
+        replacements: {
+          migrationName,
+          executedAt: new Date().toISOString()
+        }
+      }
+    );
+  } catch (error) {
+    console.warn('ISBN normalization migration warning:', error.message);
   }
 }
 
@@ -125,19 +313,25 @@ async function seedData() {
         title: 'Clean Code',
         isbn: '978-0132350884',
         author_id: authors[0].id,
-        status: 'Available'
+        status: 'Available',
+        total_copies: 3,
+        borrowed_copies: 0
       },
       {
         title: 'Harry Potter and the Philosopher\'s Stone',
         isbn: '978-0747532699',
         author_id: authors[1].id,
-        status: 'Borrowed'
+        status: 'Borrowed',
+        total_copies: 2,
+        borrowed_copies: 1
       },
       {
         title: 'กุหลาบแดง',
         isbn: '978-974-690-850-8',
         author_id: authors[2].id,
-        status: 'Available'
+        status: 'Available',
+        total_copies: 1,
+        borrowed_copies: 0
       }
     ]);
     console.log('Books seeded');

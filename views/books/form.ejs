@@ -24,6 +24,7 @@
         class="<%= errors && errors.find(e => e.path === 'title') ? 'error' : '' %>"
         required
       >
+      <span id="duplicate_title_error" class="error-message" style="display: none;"></span>
       <% const titleError = errors && errors.find(e => e.path === 'title'); %>
       <% if (titleError) { %>
         <span class="error-message"><%= titleError.msg %></span>
@@ -32,15 +33,26 @@
     
     <div class="form-group">
       <label for="isbn">ISBN <span class="required">*</span></label>
-      <input 
-        type="text" 
-        id="isbn" 
-        name="isbn" 
-        value="<%= formData.isbn || (book ? book.isbn : '') %>"
-        class="<%= errors && errors.find(e => e.path === 'isbn') ? 'error' : '' %>"
-        placeholder="เช่น 978-0132350884"
-        required
-      >
+      <div class="isbn-field-group">
+        <input 
+          type="text" 
+          id="isbn" 
+          name="isbn" 
+          value="<%= formData.isbn || (book ? book.isbn : '') %>"
+          class="<%= errors && errors.find(e => e.path === 'isbn') ? 'error' : '' %>"
+          placeholder="ระบบจะสร้างอัตโนมัติ"
+          readonly
+          required
+        >
+        <% if (!book) { %>
+          <button type="button" id="generate-isbn-btn" class="btn btn-neutral">🎲 สุ่ม ISBN ใหม่</button>
+        <% } %>
+      </div>
+      <% if (!book) { %>
+        <span class="text-muted">ระบบสร้าง ISBN ให้อัตโนมัติแบบไม่ซ้ำกัน</span>
+      <% } else { %>
+        <span class="text-muted">ISBN ถูกล็อคและไม่สามารถแก้ไขได้</span>
+      <% } %>
       <% const isbnError = errors && errors.find(e => e.path === 'isbn'); %>
       <% if (isbnError) { %>
         <span class="error-message"><%= isbnError.msg %></span>
@@ -49,19 +61,26 @@
     
     <div class="form-group">
       <label for="author_id">ผู้แต่ง <span class="required">*</span></label>
-      <select 
-        id="author_id" 
+      <div class="autocomplete-wrapper">
+        <input
+          type="text"
+          id="author_name"
+          name="author_name"
+          placeholder="พิมพ์เพื่อค้นหาผู้แต่ง..."
+          value="<%= formData.author_name || (book && book.author_id ? ((authors.find(author => author.id === book.author_id) || {}).full_name || '') : '') %>"
+          class="<%= errors && errors.find(e => e.path === 'author_id') ? 'error' : '' %>"
+          autocomplete="off"
+          required
+        >
+        <div id="author_dropdown" class="autocomplete-dropdown" hidden></div>
+      </div>
+      <input
+        type="hidden"
+        id="author_id"
         name="author_id"
-        class="<%= errors && errors.find(e => e.path === 'author_id') ? 'error' : '' %>"
-        required
+        value="<%= formData.author_id || (book ? book.author_id : '') %>"
       >
-        <option value="">-- เลือกผู้แต่ง --</option>
-        <% authors.forEach(author => { %>
-          <option value="<%= author.id %>" <%= (formData.author_id == author.id || (book && book.author_id == author.id)) ? 'selected' : '' %>>
-            <%= author.full_name %>
-          </option>
-        <% }) %>
-      </select>
+      <span class="text-muted">พิมพ์ชื่อผู้แต่ง แล้วเลือกรายชื่อจาก Dropdown</span>
       <% const authorError = errors && errors.find(e => e.path === 'author_id'); %>
       <% if (authorError) { %>
         <span class="error-message"><%= authorError.msg %></span>
@@ -69,20 +88,22 @@
     </div>
     
     <div class="form-group">
-      <label for="status">สถานะ <span class="required">*</span></label>
-      <select 
-        id="status" 
-        name="status"
-        class="<%= errors && errors.find(e => e.path === 'status') ? 'error' : '' %>"
+      <label for="total_copies">จำนวนหนังสือทั้งหมด <span class="required">*</span></label>
+      <input 
+        type="number" 
+        id="total_copies" 
+        name="total_copies" 
+        min="1"
+        value="<%= formData.total_copies || (book ? book.total_copies : 1) %>"
+        class="<%= errors && errors.find(e => e.path === 'total_copies') ? 'error' : '' %>"
         required
       >
-        <option value="Available" <%= (formData.status === 'Available' || (book && book.status === 'Available')) ? 'selected' : '' %>>พร้อมให้ยืม</option>
-        <option value="Borrowed" <%= (formData.status === 'Borrowed' || (book && book.status === 'Borrowed')) ? 'selected' : '' %>>ถูกยืม</option>
-        <option value="Lost" <%= (formData.status === 'Lost' || (book && book.status === 'Lost')) ? 'selected' : '' %>>สูญหาย</option>
-      </select>
-      <% const statusError = errors && errors.find(e => e.path === 'status'); %>
-      <% if (statusError) { %>
-        <span class="error-message"><%= statusError.msg %></span>
+      <% const totalCopiesError = errors && errors.find(e => e.path === 'total_copies'); %>
+      <% if (totalCopiesError) { %>
+        <span class="error-message"><%= totalCopiesError.msg %></span>
+      <% } %>
+      <% if (book) { %>
+        <span class="text-muted">กำลังถูกยืมอยู่: <%= book.borrowed_copies %> เล่ม</span>
       <% } %>
     </div>
     
@@ -92,5 +113,173 @@
     </div>
   </form>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const titleInput = document.getElementById('title');
+    const duplicateTitleError = document.getElementById('duplicate_title_error');
+    const currentBookId = '<%= book ? book.id : "" %>';
+
+    if (titleInput && duplicateTitleError) {
+      let debounceTimer;
+
+      const setDuplicateState = (message) => {
+        if (message) {
+          duplicateTitleError.textContent = message;
+          duplicateTitleError.style.display = 'block';
+          titleInput.setCustomValidity(message);
+          return;
+        }
+
+        duplicateTitleError.textContent = '';
+        duplicateTitleError.style.display = 'none';
+        titleInput.setCustomValidity('');
+      };
+
+      const checkDuplicate = async () => {
+        const value = (titleInput.value || '').trim();
+        if (value.length < 2) {
+          setDuplicateState('');
+          return;
+        }
+
+        try {
+          const query = new URLSearchParams({ value });
+          if (currentBookId) {
+            query.set('excludeId', currentBookId);
+          }
+
+          const response = await fetch(`/books/check-duplicate?${query.toString()}`);
+          const data = await response.json();
+          setDuplicateState(data.duplicate ? 'ชื่อหนังสือนี้มีอยู่ในระบบแล้ว' : '');
+        } catch (error) {
+          setDuplicateState('');
+        }
+      };
+
+      titleInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(checkDuplicate, 250);
+      });
+
+      titleInput.addEventListener('blur', checkDuplicate);
+    }
+
+    const authorNameInput = document.getElementById('author_name');
+    const authorIdInput = document.getElementById('author_id');
+    const authorDropdown = document.getElementById('author_dropdown');
+
+    if (authorNameInput && authorIdInput && authorDropdown) {
+      const authors = <%- JSON.stringify(authors.map((author) => ({
+        id: author.id,
+        name: author.full_name,
+        nameLower: author.full_name.toLowerCase()
+      }))) %>;
+
+      const closeDropdown = () => {
+        authorDropdown.hidden = true;
+        authorDropdown.innerHTML = '';
+      };
+
+      const selectAuthor = (author) => {
+        authorNameInput.value = author.name;
+        authorIdInput.value = author.id;
+        closeDropdown();
+      };
+
+      const renderDropdown = (keyword) => {
+        const term = (keyword || '').trim().toLowerCase();
+        const matchedAuthors = term
+          ? authors.filter((author) => author.nameLower.includes(term))
+          : authors;
+
+        if (matchedAuthors.length === 0) {
+          closeDropdown();
+          return;
+        }
+
+        const topMatches = matchedAuthors.slice(0, 8);
+        authorDropdown.innerHTML = topMatches
+          .map((author) => `<button type="button" class="autocomplete-option" data-author-id="${author.id}">${author.name}</button>`)
+          .join('');
+        authorDropdown.hidden = false;
+      };
+
+      const syncAuthorId = () => {
+        const keyword = (authorNameInput.value || '').trim().toLowerCase();
+        const matchedAuthor = authors.find((author) => author.nameLower === keyword);
+        authorIdInput.value = matchedAuthor ? matchedAuthor.id : '';
+      };
+
+      authorNameInput.addEventListener('input', () => {
+        syncAuthorId();
+        renderDropdown(authorNameInput.value);
+      });
+
+      authorNameInput.addEventListener('focus', () => {
+        renderDropdown(authorNameInput.value);
+      });
+
+      authorNameInput.addEventListener('blur', () => {
+        setTimeout(() => {
+          syncAuthorId();
+          closeDropdown();
+        }, 120);
+      });
+
+      authorDropdown.addEventListener('mousedown', (event) => {
+        const option = event.target.closest('.autocomplete-option');
+        if (!option) {
+          return;
+        }
+
+        const authorId = option.getAttribute('data-author-id');
+        const selectedAuthor = authors.find((author) => String(author.id) === String(authorId));
+        if (selectedAuthor) {
+          selectAuthor(selectedAuthor);
+        }
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!event.target.closest('.autocomplete-wrapper')) {
+          closeDropdown();
+        }
+      });
+
+      syncAuthorId();
+    }
+
+<% if (!book) { %>
+    const isbnInput = document.getElementById('isbn');
+    const generateButton = document.getElementById('generate-isbn-btn');
+
+    if (!isbnInput || !generateButton) {
+      return;
+    }
+
+    generateButton.addEventListener('click', async () => {
+      const originalText = generateButton.textContent;
+      generateButton.disabled = true;
+      generateButton.textContent = 'กำลังสุ่ม...';
+
+      try {
+        const response = await fetch('/books/isbn/generate');
+        const data = await response.json();
+
+        if (!response.ok || !data.isbn) {
+          throw new Error(data.error || 'ไม่สามารถสุ่ม ISBN ได้');
+        }
+
+        isbnInput.value = data.isbn;
+      } catch (error) {
+        alert('เกิดข้อผิดพลาดในการสุ่ม ISBN กรุณาลองอีกครั้ง');
+      } finally {
+        generateButton.disabled = false;
+        generateButton.textContent = originalText;
+      }
+    });
+<% } %>
+  });
+</script>
 
 <%- include('../partials/footer') %>

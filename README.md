@@ -1,188 +1,258 @@
 # 📚 LibraSync (ลิบราซิงค์)
 
-ระบบจัดการห้องสมุดแบบครบวงจร พัฒนาด้วย Express.js + EJS + Sequelize + SQLite
+ระบบจัดการห้องสมุดแบบครบวงจร พัฒนาด้วย Node.js + Express + EJS + Sequelize + SQLite
 
-## ✨ ฟีเจอร์หลัก
+## ✨ ฟีเจอร์ปัจจุบัน
 
-- 🔍 **ค้นหาและแบ่งหน้า** - ค้นหาแบบ Partial Match พร้อมระบบแบ่งหน้า (10/25/50 รายการต่อหน้า)
-- ✅ **Validation** - ตรวจสอบความถูกต้องของข้อมูลด้วย express-validator
-- 📊 **Dashboard** - แดชบอร์ดแสดงสถิติและกิจกรรมล่าสุด
-- 🌙 **Dark Mode** - สลับธีมสว่าง/มืด พร้อมจดจำการตั้งค่า
-- 🖨️ **Print Reports** - พิมพ์รายงานได้โดยซ่อน UI ที่ไม่จำเป็น
-- 📋 **Active Loans Report** - รายงานการยืมปัจจุบันพร้อมตรวจสอบวันที่เกินกำหนด
+- 🔍 ค้นหา + แบ่งหน้า (10/25/50)
+- 📦 รองรับจำนวนหนังสือหลายสำเนา (`total_copies`, `borrowed_copies`, `available_copies`)
+- 🔢 ISBN อัตโนมัติ + ปุ่มสุ่ม ISBN ใหม่ + normalize รูปแบบ ISBN
+- 👥 จัดการ ผู้แต่ง / หนังสือ / สมาชิก / ยืม-คืน
+- 📊 รายงาน 3 หน้า: ยืมปัจจุบัน, ประวัติยืม-คืนทั้งหมด, สมาชิกยืมกี่ครั้ง
+- 📄 ส่งออก CSV ทุกหน้ารายงาน
+- 🧪 หน้าตรวจสุขภาพระบบ (`/admin/health`) และล้างข้อมูลทั้งหมดแบบยืนยันรหัส
+- 🔐 Security middleware: `helmet`, `express-rate-limit`, `express-session`, flash messages
+- 🌙 Dark mode + 🖨️ print-friendly
 
-## 🗄️ ฐานข้อมูล
+---
 
-ระบบใช้ SQLite เป็นฐานข้อมูล ประกอบด้วย 4 ตารางหลัก:
+## 🧱 เทคโนโลยี
 
-- **Authors** - ข้อมูลผู้แต่ง
-- **Books** - ข้อมูลหนังสือ
-- **Members** - ข้อมูลสมาชิก
-- **LoanRecords** - ประวัติการยืม-คืน
+- Runtime: Node.js (แนะนำ LTS 20.x หรือใหม่กว่า)
+- Framework: Express
+- View Engine: EJS
+- ORM: Sequelize
+- Database: SQLite
+- Validation: express-validator
+- Session/Flash: express-session, connect-flash
 
-## 🚀 การติดตั้ง
+---
 
-### ข้อกำหนดเบื้องต้น
-- Node.js (เวอร์ชัน 14 ขึ้นไป)
-- npm หรือ yarn
+## ⚙️ การติดตั้งและรัน
 
-### ขั้นตอนการติดตั้ง
+1) ติดตั้งแพ็กเกจ
 
-1. ติดตั้ง dependencies:
 ```bash
 npm install
 ```
 
-2. รันเซิร์ฟเวอร์ในโหมดพัฒนา:
-```bash
-npm run dev
-```
+2) รันโปรเจกต์
 
-หรือรันในโหมด production:
 ```bash
 npm start
 ```
 
-3. เปิดเบราว์เซอร์และเข้าไปที่:
+หรือถ้าต้องการเคลียร์พอร์ต 3000 ก่อนรันอัตโนมัติ:
+
+```bash
+npm run start:clean
 ```
+
+> หมายเหตุ: สคริปต์ `npm run dev` ใช้ `nodemon` (มีใน devDependencies)
+> และมี `npm run dev:clean` สำหรับเคลียร์พอร์ตก่อนรัน dev อัตโนมัติ
+
+3) เปิด
+
+```text
 http://localhost:3000
 ```
 
-## 📁 โครงสร้างโปรเจกต์
+---
 
-```
-LibraSync/
-├── config/
-│   └── database.js          # การตั้งค่า Sequelize
-├── models/
-│   ├── index.js             # รวม associations
-│   ├── Author.js            # โมเดลผู้แต่ง
-│   ├── Book.js              # โมเดลหนังสือ
-│   ├── Member.js            # โมเดลสมาชิก
-│   └── LoanRecord.js        # โมเดลประวัติการยืม
-├── routes/
-│   ├── index.js             # หน้าแดชบอร์ด
-│   ├── authors.js           # จัดการผู้แต่ง
-│   ├── books.js             # จัดการหนังสือ
-│   ├── members.js           # จัดการสมาชิก
-│   ├── loans.js             # จัดการการยืม-คืน
-│   └── reports.js           # รายงาน
-├── views/
-│   ├── partials/            # ส่วนประกอบหน้า
-│   ├── authors/             # หน้าผู้แต่ง
-│   ├── books/               # หน้าหนังสือ
-│   ├── members/             # หน้าสมาชิก
-│   ├── loans/               # หน้าการยืม-คืน
-│   ├── reports/             # หน้ารายงาน
-│   ├── dashboard.ejs        # หน้าแดชบอร์ด
-│   └── error.ejs            # หน้าแสดงข้อผิดพลาด
-├── public/
-│   ├── css/
-│   │   └── style.css        # สไตล์หลัก + Dark Mode + Print
-│   └── js/
-│       └── darkmode.js      # สคริปต์สลับธีม
-├── middleware/
-│   └── validate.js          # Middleware ตรวจสอบข้อมูล
-├── app.js                   # ไฟล์หลักของแอป
-├── package.json
-└── README.md
+## 🔐 Environment Variables
+
+สร้างไฟล์ `.env` ที่ root:
+
+```env
+NODE_ENV=development
+PORT=3000
+SESSION_SECRET=change-this-secret
+ENABLE_SEED=false
+ADMIN_RESET_CODE=RESET-ALL
 ```
 
-## 🌐 เส้นทาง (Routes)
+คำอธิบาย:
 
-### หน้าหลัก
-- `GET /` - แดชบอร์ด
-
-### จัดการผู้แต่ง
-- `GET /authors` - รายการผู้แต่ง (ค้นหา + แบ่งหน้า)
-- `GET /authors/new` - ฟอร์มเพิ่มผู้แต่ง
-- `POST /authors` - บันทึกผู้แต่งใหม่
-- `GET /authors/:id/edit` - ฟอร์มแก้ไขผู้แต่ง
-- `POST /authors/:id/update` - อัพเดทผู้แต่ง
-- `POST /authors/:id/delete` - ลบผู้แต่ง
-
-### จัดการหนังสือ
-- `GET /books` - รายการหนังสือ (ค้นหา + แบ่งหน้า)
-- `GET /books/new` - ฟอร์มเพิ่มหนังสือ
-- `POST /books` - บันทึกหนังสือใหม่
-- `GET /books/:id/edit` - ฟอร์มแก้ไขหนังสือ
-- `POST /books/:id/update` - อัพเดทหนังสือ
-- `POST /books/:id/delete` - ลบหนังสือ
-
-### จัดการสมาชิก
-- `GET /members` - รายการสมาชิก (ค้นหา + แบ่งหน้า)
-- `GET /members/new` - ฟอร์มเพิ่มสมาชิก
-- `POST /members` - บันทึกสมาชิกใหม่
-- `GET /members/:id/edit` - ฟอร์มแก้ไขสมาชิก
-- `POST /members/:id/update` - อัพเดทสมาชิก
-- `POST /members/:id/delete` - ลบสมาชิก
-
-### จัดการการยืม-คืน
-- `GET /loans` - ประวัติการยืมทั้งหมด
-- `GET /loans/new` - ฟอร์มยืมหนังสือ
-- `POST /loans` - บันทึกการยืม
-- `POST /loans/:id/return` - บันทึกการคืน
-
-### รายงาน
-- `GET /reports/active-loans` - รายงานการยืมปัจจุบัน
-
-## 🎨 ธีมสี
-
-### โหมดสว่าง (Light Mode)
-- พื้นหลัง: #ffffff
-- ข้อความ: #2c3e50
-- สีเน้น: #3498db
-
-### โหมดมืด (Dark Mode)
-- พื้นหลัง: #1a1a2e
-- ข้อความ: #eaeaea
-- สีเน้น: #e94560
-
-## 🖨️ การพิมพ์รายงาน
-
-กดปุ่ม "พิมพ์รายงาน" บนหน้าที่ต้องการ ระบบจะ:
-- ซ่อน Navbar, Sidebar, ปุ่มต่างๆ
-- แสดงเฉพาะหัวรายงานและตารางข้อมูล
-- แสดงวันที่พิมพ์และจำนวนรายการ
-- หัวตารางซ้ำทุกหน้า
-
-## 📝 ตัวอย่างข้อมูลเริ่มต้น
-
-ระบบจะสร้างข้อมูลตัวอย่างอัตโนมัติเมื่อรันครั้งแรก:
-
-**ผู้แต่ง:**
-- Robert C. Martin - เจ้าพ่อ Clean Code
-- J.K. Rowling - ผู้เขียน Harry Potter
-- วรรณกรรมไทย - นักเขียนไทย
-
-**หนังสือ:**
-- Clean Code (พร้อมให้ยืม)
-- Harry Potter 1 (ถูกยืม)
-- กุหลาบแดง (พร้อมให้ยืม)
-
-**สมาชิก:**
-- สมชาย ใจดี
-- สมหญิง รักเรียน
-
-## 🔧 การพัฒนา
-
-### สคริปต์ที่ใช้
-- `npm run dev` - รันด้วย nodemon (auto-reload)
-- `npm start` - รันในโหมด production
-
-### Dependencies หลัก
-- express - เว็บเฟรมเวิร์ก
-- ejs - เทมเพลตเอนจิน
-- sequelize - ORM
-- sqlite3 - ฐานข้อมูล
-- express-validator - ตรวจสอบข้อมูล
-- express-session - จัดการเซสชัน
-- connect-flash - แสดงข้อความแจ้งเตือน
-
-## 📄 License
-
-MIT License - สามารถใช้งานได้ฟรี
+- `SESSION_SECRET` ใช้เข้ารหัส session
+- `ENABLE_SEED=false` ค่าเริ่มต้นไม่ seed ข้อมูลอัตโนมัติ
+- `ADMIN_RESET_CODE` ใช้ยืนยันตอนกด “ล้างข้อมูลทั้งหมด”
 
 ---
 
-พัฒนาด้วย ❤️ โดย LibraSync Team
+## 🗄️ โครงสร้างข้อมูลหลัก
+
+### Authors
+- `id`, `full_name`, `biography`
+
+### Books
+- `id`, `title`, `isbn` (unique), `author_id`
+- `status` (`Available`/`Borrowed`/`Lost`)
+- `total_copies`, `borrowed_copies`
+
+### Members
+- `id`, `full_name`, `email` (unique), `phone_number`, `joined_date`
+
+### LoanRecords
+- `id`, `book_id`, `member_id`, `borrow_date`, `return_date`
+
+### SystemMigrations
+- ใช้บันทึก one-time migration ภายในระบบ
+
+---
+
+## 📁 โครงสร้างโปรเจกต์
+
+```text
+librasync2/
+├─ app.js
+├─ config/
+│  └─ database.js
+├─ middleware/
+│  └─ validate.js
+├─ models/
+│  ├─ Author.js
+│  ├─ Book.js
+│  ├─ Member.js
+│  ├─ LoanRecord.js
+│  └─ index.js
+├─ routes/
+│  ├─ index.js
+│  ├─ authors.js
+│  ├─ books.js
+│  ├─ members.js
+│  ├─ loans.js
+│  ├─ reports.js
+│  └─ admin.js
+├─ views/
+│  ├─ partials/
+│  ├─ authors/
+│  ├─ books/
+│  ├─ members/
+│  ├─ loans/
+│  ├─ reports/
+│  ├─ admin/
+│  ├─ dashboard.ejs
+│  └─ error.ejs
+├─ public/
+│  ├─ css/style.css
+│  └─ js/darkmode.js
+├─ backups/
+├─ database.sqlite
+└─ README.md
+```
+
+---
+
+## 🌐 Routes
+
+### หน้าแอป
+- `GET /` แดชบอร์ด
+
+### ผู้แต่ง
+- `GET /authors`
+- `GET /authors/new`
+- `POST /authors`
+- `GET /authors/:id/edit`
+- `POST /authors/:id/update`
+- `POST /authors/:id/delete`
+
+### หนังสือ
+- `GET /books`
+- `GET /books/new`
+- `GET /books/isbn/generate`
+- `POST /books`
+- `GET /books/:id/edit`
+- `POST /books/:id/update`
+- `POST /books/:id/delete`
+
+### สมาชิก
+- `GET /members`
+- `GET /members/new`
+- `POST /members`
+- `GET /members/:id/edit`
+- `POST /members/:id/update`
+- `POST /members/:id/delete`
+
+### ยืม-คืน
+- `GET /loans`
+- `GET /loans/new`
+- `POST /loans`
+- `POST /loans/:id/return`
+
+### รายงาน
+- `GET /reports/active-loans`
+- `GET /reports/loan-history`
+- `GET /reports/member-borrow-summary`
+- เพิ่ม `?format=csv` เพื่อ export CSV
+
+### แอดมิน
+- `GET /admin/health`
+- `POST /admin/reset-data` (ต้องกรอกรหัสยืนยัน)
+
+---
+
+## 🧩 พฤติกรรมสำคัญของระบบ
+
+- ระบบคำนวณสถานะหนังสือจากจำนวนคงเหลือร่วมกับสถานะสูญหาย
+- การยืม/คืนทำใน transaction เพื่อลดความเสี่ยงข้อมูลไม่ตรงกัน
+- มี one-time migration สำหรับ normalize ISBN เก่า
+- หน้าแอดมินมีการ backup ไฟล์ฐานข้อมูลก่อนล้างข้อมูลเสมอ
+
+---
+
+## 🧯 การล้างข้อมูลทั้งหมด
+
+### วิธีผ่านหน้าเว็บ (แนะนำ)
+1. ไปที่ `/admin/health`
+2. กรอกรหัสยืนยัน (`ADMIN_RESET_CODE`)
+3. กด “ล้างข้อมูลทั้งหมด”
+
+ระบบจะ:
+- backup DB ไปที่โฟลเดอร์ `backups/`
+- ลบข้อมูลใน `LoanRecords`, `Books`, `Members`, `Authors`
+
+### วิธี manual
+ลบไฟล์ `database.sqlite` แล้ว `npm start` ใหม่
+
+---
+
+## 🛠️ Troubleshooting
+
+### พอร์ต 3000 ถูกใช้งาน (`EADDRINUSE`)
+ปิด process เดิมแล้วรันใหม่:
+
+```powershell
+Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue |
+	Select-Object -ExpandProperty OwningProcess -Unique |
+	ForEach-Object { Stop-Process -Id $_ -Force }
+```
+
+จากนั้นรัน `npm run dev` หรือ `npm start` ใหม่อีกครั้ง
+
+ทางเลือกที่ง่ายกว่า (แนะนำ):
+
+```bash
+npm run dev:clean
+```
+
+### `npm run dev` ไม่ทำงาน
+ให้ติดตั้ง dependencies ให้ครบก่อน (`npm install`) หรือใช้ `npm start`
+
+### ข้อมูลตัวอย่างกลับมาเอง
+ตรวจ `.env` ว่า `ENABLE_SEED=false`
+
+---
+
+## 📚 เอกสารช่วยพรีเซนต์
+
+สำหรับอธิบายโค้ดกับอาจารย์ แนะนำเปิดไฟล์:
+
+- `docs/CLASSROOM_CODE_WALKTHROUGH_TH.md`
+
+ไฟล์นี้จัดทำเพื่ออธิบายแต่ละไฟล์และ flow การทำงานแบบสอนหน้าชั้น
+
+---
+
+## 📄 License
+
+MIT

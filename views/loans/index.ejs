@@ -1,7 +1,7 @@
 <%- include('../partials/header') %>
 
 <div class="page-header">
-  <h1>ประวัติการยืม-คืน</h1>
+  <h1>ประวัติยืม-คืน</h1>
   <a href="/loans/new" class="btn btn-primary no-print">📤 ยืมหนังสือ</a>
 </div>
 
@@ -20,17 +20,18 @@
 
 <!-- Print Header (hidden on screen) -->
 <div class="print-header" style="display: none;">
-  <h2>รายงานประวัติการยืม-คืน</h2>
+  <h2>รายงานประวัติยืม-คืน</h2>
   <p>วันที่พิมพ์: <%= new Date().toLocaleDateString('th-TH') %></p>
   <p>จำนวนทั้งหมด: <%= pagination.totalItems || 0 %> รายการ</p>
 </div>
 
 <!-- Loans Table -->
 <% if (loans && loans.length > 0) { %>
+  <div class="table-center-shell">
   <table class="data-table">
     <thead>
       <tr>
-        <th>#</th>
+        <th>ลำดับที่</th>
         <th>หนังสือ</th>
         <th>ผู้แต่ง</th>
         <th>ผู้ยืม</th>
@@ -69,6 +70,7 @@
       <% }) %>
     </tbody>
   </table>
+  </div>
   
   <!-- Pagination -->
   <% if (pagination.totalPages > 1) { %>
@@ -85,10 +87,7 @@
     </div>
   <% } %>
 <% } else { %>
-  <p class="no-data">ไม่พบประวัติการยืม-คืน</p>
+  <p class="no-data">ไม่พบประวัติยืม-คืน</p>
 <% } %>
-
-<!-- Print Button -->
-<button onclick="window.print()" class="btn btn-secondary no-print" style="margin-top: 20px;">🖨️ พิมพ์รายงาน</button>
 
 <%- include('../partials/footer') %>

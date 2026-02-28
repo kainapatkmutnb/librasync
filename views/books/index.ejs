@@ -7,17 +7,41 @@
 
 <!-- Search and Pagination Controls -->
 <div class="controls no-print">
-  <form class="search-form" method="GET" action="/books">
-    <input type="text" name="search" placeholder="ค้นหาหนังสือหรือ ISBN..." value="<%= search %>">
-    <button type="submit" class="btn btn-secondary">🔍 ค้นหา</button>
-    <% if (search) { %>
-      <a href="/books" class="btn btn-light">ล้าง</a>
-    <% } %>
+  <form class="report-filter-form" method="GET" action="/books">
+    <div class="report-filter-field">
+      <label for="book-search">ค้นหา</label>
+      <input id="book-search" type="text" name="search" placeholder="ชื่อหนังสือ หรือ ISBN" value="<%= search %>">
+    </div>
+    <div class="report-filter-field">
+      <label for="book-author-filter">ผู้แต่ง</label>
+      <select id="book-author-filter" name="author_id">
+        <option value="">ผู้แต่งทั้งหมด</option>
+        <% (authors || []).forEach(author => { %>
+          <option value="<%= author.id %>" <%= String(filters && filters.author_id ? filters.author_id : '') === String(author.id) ? 'selected' : '' %>>
+            <%= author.full_name %>
+          </option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="report-filter-field">
+      <label for="book-availability-filter">ความพร้อมยืม</label>
+      <select id="book-availability-filter" name="availability">
+        <option value="all" <%= (filters && filters.availability === 'all') ? 'selected' : '' %>>ทั้งหมด</option>
+        <option value="available" <%= (filters && filters.availability === 'available') ? 'selected' : '' %>>คงเหลือมากกว่า 0</option>
+        <option value="out-of-stock" <%= (filters && filters.availability === 'out-of-stock') ? 'selected' : '' %>>คงเหลือ 0</option>
+      </select>
+    </div>
+    <div class="report-filter-actions">
+      <button type="submit" class="btn btn-secondary">🔍 ค้นหา</button>
+      <% if (search || (filters && filters.author_id) || (filters && filters.availability && filters.availability !== 'all')) { %>
+        <a href="/books" class="btn btn-light">ล้าง</a>
+      <% } %>
+    </div>
   </form>
   
   <div class="limit-selector">
     <label>แสดง:</label>
-    <select onchange="window.location.href='?page=1&search=<%= search %>&limit='+this.value">
+    <select onchange="window.location.href='?page=1&search=<%= encodeURIComponent(search || '') %>&author_id=<%= encodeURIComponent(filters && filters.author_id ? filters.author_id : '') %>&availability=<%= encodeURIComponent(filters && filters.availability ? filters.availability : 'all') %>&limit='+this.value">
       <option value="10" <%= pagination.limit === 10 ? 'selected' : '' %>>10</option>
       <option value="25" <%= pagination.limit === 25 ? 'selected' : '' %>>25</option>
       <option value="50" <%= pagination.limit === 50 ? 'selected' : '' %>>50</option>
@@ -35,14 +59,17 @@
 
 <!-- Books Table -->
 <% if (books && books.length > 0) { %>
-  <table class="data-table">
+  <div class="table-center-shell">
+  <table class="data-table book-table">
     <thead>
       <tr>
-        <th>#</th>
+        <th class="serial-col">ลำดับที่</th>
         <th>ชื่อหนังสือ</th>
         <th>ISBN</th>
         <th>ผู้แต่ง</th>
-        <th>สถานะ</th>
+        <th>ทั้งหมด</th>
+        <th>ถูกยืม</th>
+        <th>คงเหลือ</th>
         <th class="no-print actions-column">จัดการ</th>
       </tr>
     </thead>
@@ -53,11 +80,9 @@
           <td><%= book.title %></td>
           <td><%= book.isbn %></td>
           <td><%= book.Author ? book.Author.full_name : 'ไม่ทราบ' %></td>
-          <td>
-            <span class="status-badge status-<%= book.status.toLowerCase() %>">
-              <%= book.status === 'Available' ? 'พร้อมให้ยืม' : book.status === 'Borrowed' ? 'ถูกยืม' : 'สูญหาย' %>
-            </span>
-          </td>
+          <td><%= book.total_copies %></td>
+          <td><%= book.borrowed_copies %></td>
+          <td><%= book.available_copies %></td>
           <td class="no-print actions-column">
             <a href="/books/<%= book.id %>/edit" class="btn btn-sm btn-warning">แก้ไข</a>
             <form action="/books/<%= book.id %>/delete" method="POST" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบหนังสือนี้?')">
@@ -68,26 +93,24 @@
       <% }) %>
     </tbody>
   </table>
+  </div>
   
   <!-- Pagination -->
   <% if (pagination.totalPages > 1) { %>
     <div class="pagination no-print">
       <% if (pagination.hasPrev) { %>
-        <a href="?page=<%= pagination.page - 1 %>&search=<%= search %>&limit=<%= pagination.limit %>" class="btn btn-light">← ก่อนหน้า</a>
+        <a href="?page=<%= pagination.page - 1 %>&search=<%= encodeURIComponent(search || '') %>&author_id=<%= encodeURIComponent(filters && filters.author_id ? filters.author_id : '') %>&availability=<%= encodeURIComponent(filters && filters.availability ? filters.availability : 'all') %>&limit=<%= pagination.limit %>" class="btn btn-light">← ก่อนหน้า</a>
       <% } %>
       
       <span class="page-info">หน้า <%= pagination.page %> จาก <%= pagination.totalPages %> (ทั้งหมด <%= pagination.totalItems %> รายการ)</span>
       
       <% if (pagination.hasNext) { %>
-        <a href="?page=<%= pagination.page + 1 %>&search=<%= search %>&limit=<%= pagination.limit %>" class="btn btn-light">ถัดไป →</a>
+        <a href="?page=<%= pagination.page + 1 %>&search=<%= encodeURIComponent(search || '') %>&author_id=<%= encodeURIComponent(filters && filters.author_id ? filters.author_id : '') %>&availability=<%= encodeURIComponent(filters && filters.availability ? filters.availability : 'all') %>&limit=<%= pagination.limit %>" class="btn btn-light">ถัดไป →</a>
       <% } %>
     </div>
   <% } %>
 <% } else { %>
   <p class="no-data">ไม่พบข้อมูลหนังสือ</p>
 <% } %>
-
-<!-- Print Button -->
-<button onclick="window.print()" class="btn btn-secondary no-print" style="margin-top: 20px;">🖨️ พิมพ์รายงาน</button>
 
 <%- include('../partials/footer') %>
