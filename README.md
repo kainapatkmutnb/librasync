@@ -1,66 +1,85 @@
 # 📚 LibraSync (ลิบราซิงค์)
 
-ระบบจัดการห้องสมุดแบบครบวงจร พัฒนาด้วย Node.js + Express + EJS + Sequelize + SQLite
+ระบบจัดการห้องสมุดด้วย Node.js + Express + EJS + Sequelize + SQLite
+รองรับงานปฏิบัติการ (ยืม/คืน) และงานรายงานเชิงวิเคราะห์ในระบบเดียว
 
-## ✨ ฟีเจอร์ปัจจุบัน
+---
 
-- 🔍 ค้นหา + แบ่งหน้า (10/25/50)
-- 📦 รองรับจำนวนหนังสือหลายสำเนา (`total_copies`, `borrowed_copies`, `available_copies`)
-- 🔢 ISBN อัตโนมัติ + ปุ่มสุ่ม ISBN ใหม่ + normalize รูปแบบ ISBN
-- 👥 จัดการ ผู้แต่ง / หนังสือ / สมาชิก / ยืม-คืน
-- 📊 รายงาน 3 หน้า: ยืมปัจจุบัน, ประวัติยืม-คืนทั้งหมด, สมาชิกยืมกี่ครั้ง
-- 📄 ส่งออก CSV ทุกหน้ารายงาน
-- 🧪 หน้าตรวจสุขภาพระบบ (`/admin/health`) และล้างข้อมูลทั้งหมดแบบยืนยันรหัส
-- 🔐 Security middleware: `helmet`, `express-rate-limit`, `express-session`, flash messages
-- 🌙 Dark mode + 🖨️ print-friendly
+## ✨ ฟีเจอร์หลัก (อัปเดตตามโปรเจกต์ปัจจุบัน)
+
+### 1) จัดการข้อมูลหลัก
+- ผู้แต่ง / หนังสือ / สมาชิก / ยืม-คืน
+- ค้นหา + แบ่งหน้า (10 / 25 / 50)
+- Validation ฝั่งเซิร์ฟเวอร์ด้วย `express-validator`
+
+### 2) ระบบหนังสือหลายสำเนา
+- รองรับ `total_copies`, `borrowed_copies`, `available_copies`
+- อัปเดตสถานะคงคลังเมื่อยืม/คืนแบบ transaction
+
+### 3) ระบบ ISBN
+- สร้าง ISBN อัตโนมัติ
+- Normalize รูปแบบ ISBN
+- one-time migration สำหรับ normalize ISBN เก่า
+
+### 4) รายงานครบชุด
+- รายงานการยืมปัจจุบัน (`/reports/active-loans`)
+- รายงานประวัติยืม-คืนทั้งหมด (`/reports/loan-history`)
+- รายงานสมาชิกยืมกี่ครั้ง (`/reports/member-borrow-summary`)
+- ส่งออก CSV ทุกหน้ารายงานด้วย `?format=csv`
+
+### 5) Dashboard เวอร์ชันวิเคราะห์ (เฟส 1-3)
+- KPI สำคัญ: หนังสือทั้งหมด, กำลังถูกยืม, พร้อมให้ยืม, สมาชิกทั้งหมด, ยืมวันนี้, คืนวันนี้
+- การ์ดเตือน: เกินกำหนด 7 วัน, ใกล้หมดสต็อก, สมาชิกค้างยืมหลายเล่ม
+- การ์ดเตือนคลิกได้พร้อม query filter ที่เกี่ยวข้อง
+- แนวโน้มยืม/คืน: 7 วัน + สวิตช์ช่วงเวลา 7/30/90 วัน
+- Top 10 หนังสือที่ถูกยืมมากที่สุด
+- Top 10 สมาชิกที่ยืมมากที่สุด
+- Smart Search สมาชิกใน Dashboard (เลือกสมาชิกแล้วดูหนังสือที่เคยยืม + วันที่ล่าสุด)
+
+### 6) ความปลอดภัยและแอดมิน
+- `helmet`, `express-rate-limit`, `express-session`, `connect-flash`
+- หน้าตรวจสุขภาพระบบ (`/admin/health`)
+- ล้างข้อมูลทั้งหมดพร้อมรหัสยืนยัน (`ADMIN_RESET_CODE`) และสำรองฐานข้อมูลก่อนล้าง
 
 ---
 
 ## 🧱 เทคโนโลยี
-
-- Runtime: Node.js (แนะนำ LTS 20.x หรือใหม่กว่า)
-- Framework: Express
+- Runtime: Node.js (แนะนำ LTS 20+)
+- Backend: Express
 - View Engine: EJS
 - ORM: Sequelize
 - Database: SQLite
 - Validation: express-validator
-- Session/Flash: express-session, connect-flash
 
 ---
 
 ## ⚙️ การติดตั้งและรัน
 
-1) ติดตั้งแพ็กเกจ
-
+### 1) ติดตั้งแพ็กเกจ
 ```bash
 npm install
 ```
 
-2) รันโปรเจกต์
-
+### 2) รันระบบ
 ```bash
 npm start
 ```
 
-หรือถ้าต้องการเคลียร์พอร์ต 3000 ก่อนรันอัตโนมัติ:
-
-```bash
-npm run start:clean
-```
-
-> หมายเหตุ: สคริปต์ `npm run dev` ใช้ `nodemon` (มีใน devDependencies)
-> และมี `npm run dev:clean` สำหรับเคลียร์พอร์ตก่อนรัน dev อัตโนมัติ
-
-3) เปิด
-
+### 3) เปิดใช้งาน
 ```text
 http://localhost:3000
 ```
 
+### สคริปต์ที่มีในโปรเจกต์
+- `npm start` รันแอปด้วย Node
+- `npm run dev` รันด้วย nodemon
+- `npm run port:free` เคลียร์พอร์ต 3000
+- `npm run start:clean` เคลียร์พอร์ตแล้วค่อย start
+- `npm run dev:clean` เคลียร์พอร์ตก่อนรัน dev
+
 ---
 
 ## 🔐 Environment Variables
-
 สร้างไฟล์ `.env` ที่ root:
 
 ```env
@@ -72,10 +91,9 @@ ADMIN_RESET_CODE=RESET-ALL
 ```
 
 คำอธิบาย:
-
-- `SESSION_SECRET` ใช้เข้ารหัส session
-- `ENABLE_SEED=false` ค่าเริ่มต้นไม่ seed ข้อมูลอัตโนมัติ
-- `ADMIN_RESET_CODE` ใช้ยืนยันตอนกด “ล้างข้อมูลทั้งหมด”
+- `SESSION_SECRET` ควรเปลี่ยนเป็นค่า secret จริง
+- `ENABLE_SEED=false` ปิด seed อัตโนมัติ (แนะนำสำหรับงานจริง)
+- `ADMIN_RESET_CODE` รหัสยืนยันการล้างข้อมูลทั้งระบบ
 
 ---
 
@@ -86,7 +104,7 @@ ADMIN_RESET_CODE=RESET-ALL
 
 ### Books
 - `id`, `title`, `isbn` (unique), `author_id`
-- `status` (`Available`/`Borrowed`/`Lost`)
+- `status` (`Available` / `Borrowed` / `Lost`)
 - `total_copies`, `borrowed_copies`
 
 ### Members
@@ -96,57 +114,14 @@ ADMIN_RESET_CODE=RESET-ALL
 - `id`, `book_id`, `member_id`, `borrow_date`, `return_date`
 
 ### SystemMigrations
-- ใช้บันทึก one-time migration ภายในระบบ
-
----
-
-## 📁 โครงสร้างโปรเจกต์
-
-```text
-librasync2/
-├─ app.js
-├─ config/
-│  └─ database.js
-├─ middleware/
-│  └─ validate.js
-├─ models/
-│  ├─ Author.js
-│  ├─ Book.js
-│  ├─ Member.js
-│  ├─ LoanRecord.js
-│  └─ index.js
-├─ routes/
-│  ├─ index.js
-│  ├─ authors.js
-│  ├─ books.js
-│  ├─ members.js
-│  ├─ loans.js
-│  ├─ reports.js
-│  └─ admin.js
-├─ views/
-│  ├─ partials/
-│  ├─ authors/
-│  ├─ books/
-│  ├─ members/
-│  ├─ loans/
-│  ├─ reports/
-│  ├─ admin/
-│  ├─ dashboard.ejs
-│  └─ error.ejs
-├─ public/
-│  ├─ css/style.css
-│  └─ js/darkmode.js
-├─ backups/
-├─ database.sqlite
-└─ README.md
-```
+- บันทึก one-time migration ภายในระบบ
 
 ---
 
 ## 🌐 Routes
 
-### หน้าแอป
-- `GET /` แดชบอร์ด
+### หน้าหลัก
+- `GET /` Dashboard
 
 ### ผู้แต่ง
 - `GET /authors`
@@ -160,6 +135,7 @@ librasync2/
 - `GET /books`
 - `GET /books/new`
 - `GET /books/isbn/generate`
+- `GET /books/check-duplicate`
 - `POST /books`
 - `GET /books/:id/edit`
 - `POST /books/:id/update`
@@ -183,76 +159,86 @@ librasync2/
 - `GET /reports/active-loans`
 - `GET /reports/loan-history`
 - `GET /reports/member-borrow-summary`
-- เพิ่ม `?format=csv` เพื่อ export CSV
 
 ### แอดมิน
 - `GET /admin/health`
-- `POST /admin/reset-data` (ต้องกรอกรหัสยืนยัน)
+- `POST /admin/reset-data`
 
 ---
 
-## 🧩 พฤติกรรมสำคัญของระบบ
+## 📊 Query ที่ใช้บ่อย
 
-- ระบบคำนวณสถานะหนังสือจากจำนวนคงเหลือร่วมกับสถานะสูญหาย
-- การยืม/คืนทำใน transaction เพื่อลดความเสี่ยงข้อมูลไม่ตรงกัน
-- มี one-time migration สำหรับ normalize ISBN เก่า
-- หน้าแอดมินมีการ backup ไฟล์ฐานข้อมูลก่อนล้างข้อมูลเสมอ
+### รายงานการยืมปัจจุบัน
+- `GET /reports/active-loans?from=YYYY-MM-DD&to=YYYY-MM-DD&member_id=ID`
 
----
+### รายงานประวัติยืม-คืนทั้งหมด
+- `GET /reports/loan-history?from=YYYY-MM-DD&to=YYYY-MM-DD&status=all|active|returned`
+- `GET /reports/loan-history?returned_from=YYYY-MM-DD&returned_to=YYYY-MM-DD`
 
-## 🧯 การล้างข้อมูลทั้งหมด
+> หมายเหตุพฤติกรรมล่าสุด: ถ้ากรองด้วยช่วงวันที่ยืม (`from/to`) ระบบจะเน้นรายการที่ยังไม่คืนตามเงื่อนไขที่กำหนดไว้ในโค้ดปัจจุบัน
 
-### วิธีผ่านหน้าเว็บ (แนะนำ)
-1. ไปที่ `/admin/health`
-2. กรอกรหัสยืนยัน (`ADMIN_RESET_CODE`)
-3. กด “ล้างข้อมูลทั้งหมด”
+### รายงานสมาชิกยืมกี่ครั้ง
+- `GET /reports/member-borrow-summary?from=YYYY-MM-DD&to=YYYY-MM-DD&keyword=...&min_borrows=0`
+- `GET /reports/member-borrow-summary?detail_member_id=ID`
 
-ระบบจะ:
-- backup DB ไปที่โฟลเดอร์ `backups/`
-- ลบข้อมูลใน `LoanRecords`, `Books`, `Members`, `Authors`
-
-### วิธี manual
-ลบไฟล์ `database.sqlite` แล้ว `npm start` ใหม่
+### ส่งออก CSV
+- เติม `&format=csv`
 
 ---
 
-## 🛠️ Troubleshooting
+## 🧠 พฤติกรรมสำคัญในระบบ
+- ยืม/คืนทำด้วย transaction เพื่อความถูกต้องของคงคลัง
+- สถานะบางรายงานใช้ effective-date (`return_date` เทียบวันปัจจุบัน)
+- Dashboard รองรับสวิตช์ช่วงเวลา 7/30/90 วัน โดยใช้ query `trend_days`
+- การ์ดเตือนใน Dashboard ผูกลิงก์ไปหน้ารายงานที่มี filter พร้อมใช้
 
-### พอร์ต 3000 ถูกใช้งาน (`EADDRINUSE`)
-ปิด process เดิมแล้วรันใหม่:
+---
 
-```powershell
-Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue |
-	Select-Object -ExpandProperty OwningProcess -Unique |
-	ForEach-Object { Stop-Process -Id $_ -Force }
+## 🧯 Troubleshooting
+
+### ปัญหา Port 3000 ถูกใช้งาน (`EADDRINUSE`)
+```bash
+npm run start:clean
 ```
-
-จากนั้นรัน `npm run dev` หรือ `npm start` ใหม่อีกครั้ง
-
-ทางเลือกที่ง่ายกว่า (แนะนำ):
-
+หรือ
 ```bash
 npm run dev:clean
 ```
 
-### `npm run dev` ไม่ทำงาน
-ให้ติดตั้ง dependencies ให้ครบก่อน (`npm install`) หรือใช้ `npm start`
+### รันไม่ขึ้นหลังแก้โค้ด
+1. ปิด process node เดิม
+2. รันใหม่ด้วย `npm start`
+3. hard refresh หน้าเว็บ (`Ctrl+F5`)
 
-### ข้อมูลตัวอย่างกลับมาเอง
-ตรวจ `.env` ว่า `ENABLE_SEED=false`
+### ต้องการล้างข้อมูลทั้งระบบ
+- ไปที่ `/admin/health`
+- กรอก `ADMIN_RESET_CODE`
+- ระบบจะ backup DB ก่อนล้างข้อมูล
 
 ---
 
-## 📚 เอกสารช่วยพรีเซนต์
+## 📁 โครงสร้างโปรเจกต์โดยย่อ
+```text
+librasync2/
+├─ app.js
+├─ config/
+├─ middleware/
+├─ models/
+├─ routes/
+├─ views/
+├─ public/
+├─ scripts/
+├─ docs/
+├─ backups/
+├─ database.sqlite
+├─ package.json
+└─ README.md
+```
 
-สำหรับอธิบายโค้ดกับอาจารย์ แนะนำเปิดไฟล์:
-
+เอกสารอธิบายโค้ดสำหรับพรีเซนต์:
 - `docs/CLASSROOM_CODE_WALKTHROUGH_TH.md`
-
-ไฟล์นี้จัดทำเพื่ออธิบายแต่ละไฟล์และ flow การทำงานแบบสอนหน้าชั้น
 
 ---
 
 ## 📄 License
-
 MIT
