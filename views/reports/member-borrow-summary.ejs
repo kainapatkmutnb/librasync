@@ -47,6 +47,51 @@
   </form>
 </div>
 
+<% if (filters && filters.detail_member_id) { %>
+  <div class="report-summary">
+    <h3>รายละเอียดการยืมของสมาชิก</h3>
+    <% if (detailMember) { %>
+      <p>สมาชิก: <strong><%= detailMember.full_name %></strong> (<%= detailMember.email %>)</p>
+    <% } %>
+    <p>จำนวนชื่อหนังสือที่เคยยืม: <strong><%= (detailMemberBooks || []).length %></strong> เล่ม</p>
+  </div>
+
+  <% if (detailMemberBooks && detailMemberBooks.length > 0) { %>
+    <div class="table-center-shell">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ลำดับที่</th>
+          <th>ชื่อหนังสือ</th>
+          <th>ผู้แต่ง</th>
+          <th>ยืมทั้งหมด</th>
+          <th>กำลังยืม</th>
+          <th>วันที่ยืมครั้งแรก</th>
+          <th>วันที่ยืมล่าสุด</th>
+          <th>วันที่คืนล่าสุด</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% detailMemberBooks.forEach((item, index) => { %>
+          <tr>
+            <td><%= index + 1 %></td>
+            <td><%= item.title %></td>
+            <td><%= item.author %></td>
+            <td><strong><%= item.total_borrows %></strong> ครั้ง</td>
+            <td><%= item.active_borrows %> รายการ</td>
+            <td><%= item.first_borrow_date ? new Date(item.first_borrow_date).toLocaleDateString('th-TH') : '-' %></td>
+            <td><%= item.last_borrow_date ? new Date(item.last_borrow_date).toLocaleDateString('th-TH') : '-' %></td>
+            <td><%= item.last_return_date ? new Date(item.last_return_date).toLocaleDateString('th-TH') : '-' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+  <% } else { %>
+    <p class="no-data">สมาชิกคนนี้ยังไม่มีประวัติยืมในช่วงเงื่อนไขที่เลือก</p>
+  <% } %>
+<% } %>
+
 <div class="print-header" style="display: none;">
   <h2>รายงานสมาชิกยืมกี่ครั้ง</h2>
   <p>วันที่พิมพ์: <%= printDate %></p>
@@ -94,51 +139,6 @@
   </div>
 <% } else { %>
   <p class="no-data">ยังไม่มีข้อมูลสมาชิก</p>
-<% } %>
-
-<% if (filters && filters.detail_member_id) { %>
-  <div class="report-summary">
-    <h3>รายละเอียดการยืมของสมาชิก</h3>
-    <% if (detailMember) { %>
-      <p>สมาชิก: <strong><%= detailMember.full_name %></strong> (<%= detailMember.email %>)</p>
-    <% } %>
-    <p>จำนวนชื่อหนังสือที่เคยยืม: <strong><%= (detailMemberBooks || []).length %></strong> เล่ม</p>
-  </div>
-
-  <% if (detailMemberBooks && detailMemberBooks.length > 0) { %>
-    <div class="table-center-shell">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>ลำดับที่</th>
-          <th>ชื่อหนังสือ</th>
-          <th>ผู้แต่ง</th>
-          <th>ยืมทั้งหมด</th>
-          <th>กำลังยืม</th>
-          <th>วันที่ยืมครั้งแรก</th>
-          <th>วันที่ยืมล่าสุด</th>
-          <th>วันที่คืนล่าสุด</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% detailMemberBooks.forEach((item, index) => { %>
-          <tr>
-            <td><%= index + 1 %></td>
-            <td><%= item.title %></td>
-            <td><%= item.author %></td>
-            <td><strong><%= item.total_borrows %></strong> ครั้ง</td>
-            <td><%= item.active_borrows %> รายการ</td>
-            <td><%= item.first_borrow_date ? new Date(item.first_borrow_date).toLocaleDateString('th-TH') : '-' %></td>
-            <td><%= item.last_borrow_date ? new Date(item.last_borrow_date).toLocaleDateString('th-TH') : '-' %></td>
-            <td><%= item.last_return_date ? new Date(item.last_return_date).toLocaleDateString('th-TH') : '-' %></td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
-    </div>
-  <% } else { %>
-    <p class="no-data">สมาชิกคนนี้ยังไม่มีประวัติยืมในช่วงเงื่อนไขที่เลือก</p>
-  <% } %>
 <% } %>
 
 <%- include('../partials/footer') %>

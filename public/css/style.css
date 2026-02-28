@@ -644,6 +644,13 @@ body {
   min-width: 104px;
 }
 
+.loans-table th.date-col,
+.loans-table td.date-col {
+  white-space: nowrap !important;
+  word-break: normal !important;
+  min-width: 104px;
+}
+
 .isbn-field-group {
   display: flex;
   gap: 0.75rem;
@@ -885,9 +892,121 @@ body {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.dashboard-alerts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
+}
+
+.dashboard-grid-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.dashboard-panel h2 {
+  margin-bottom: 0.9rem;
+  font-size: 1.1rem;
+}
+
+.dashboard-switches {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-switches .btn.is-active {
+  background: var(--gradient-primary);
+  color: white;
+  border-color: transparent;
+}
+
+.dashboard-table {
+  width: 100%;
+}
+
+.dashboard-member-summary {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.text-link {
+  color: var(--accent-color);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.text-link:hover {
+  color: var(--accent-hover);
+}
+
+.mini-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.mini-chart.compact {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.mini-chart-row {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.mini-chart-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.mini-chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mini-bar {
+  min-height: 18px;
+  border-radius: 999px;
+  min-width: 34px;
+  color: white;
+  font-size: 0.74rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 0.45rem;
+}
+
+.mini-bar-borrow {
+  background: var(--gradient-primary);
+}
+
+.mini-bar-return {
+  background: var(--gradient-success);
 }
 
 .stat-card {
@@ -1132,6 +1251,16 @@ body {
   
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-alerts,
+  .dashboard-grid-two {
+    grid-template-columns: 1fr;
+  }
+
+  .mini-chart-row {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
   }
   
   .form-actions {

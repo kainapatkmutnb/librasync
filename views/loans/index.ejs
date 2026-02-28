@@ -28,15 +28,15 @@
 <!-- Loans Table -->
 <% if (loans && loans.length > 0) { %>
   <div class="table-center-shell">
-  <table class="data-table">
+  <table class="data-table loans-table">
     <thead>
       <tr>
         <th>ลำดับที่</th>
         <th>หนังสือ</th>
         <th>ผู้แต่ง</th>
         <th>ผู้ยืม</th>
-        <th>วันที่ยืม</th>
-        <th>วันที่คืน</th>
+        <th class="date-col">วันที่ยืม</th>
+        <th class="date-col">วันที่คืน</th>
         <th>สถานะ</th>
         <th class="no-print actions-column">จัดการ</th>
       </tr>
@@ -48,8 +48,8 @@
           <td><%= loan.Book ? loan.Book.title : 'ไม่ทราบ' %></td>
           <td><%= loan.Book && loan.Book.Author ? loan.Book.Author.full_name : 'ไม่ทราบ' %></td>
           <td><%= loan.Member ? loan.Member.full_name : 'ไม่ทราบ' %></td>
-          <td><%= new Date(loan.borrow_date).toLocaleDateString('th-TH') %></td>
-          <td><%= loan.return_date ? new Date(loan.return_date).toLocaleDateString('th-TH') : '-' %></td>
+          <td class="date-col"><%= new Date(loan.borrow_date).toLocaleDateString('th-TH') %></td>
+          <td class="date-col"><%= loan.return_date ? new Date(loan.return_date).toLocaleDateString('th-TH') : '-' %></td>
           <td>
             <% if (loan.return_date) { %>
               <span class="status-badge status-returned">คืนแล้ว</span>
