@@ -142,6 +142,7 @@ body {
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow);
+  color: var(--text-primary);
 }
 
 .btn-theme:hover {
@@ -150,6 +151,18 @@ body {
   border-color: var(--accent-color);
   transform: scale(1.1);
   box-shadow: var(--shadow-hover);
+}
+
+/* Make sure the inner icon inherits the button color and is slightly larger for visibility */
+.btn-theme i {
+  color: inherit;
+  font-size: 1.15rem;
+}
+
+/* Focus state for accessibility */
+.btn-theme:focus {
+  outline: 2px solid rgba(99,102,241,0.25);
+  outline-offset: 2px;
 }
 
 /* Container */
