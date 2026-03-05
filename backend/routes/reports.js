@@ -51,17 +51,37 @@ const setRowColor = (row, status) => {
 const addLegendWorksheet = (workbook) => {
   const legend = workbook.addWorksheet('คำอธิบายสี');
   legend.columns = [
-    { header: 'สถานะ', key: 'status', width: 24 },
-    { header: 'ความหมาย', key: 'meaning', width: 60 }
+    { key: 'status', width: 28 },
+    { key: 'meaning', width: 66 }
   ];
 
-  const legendHeader = legend.getRow(1);
+  legend.mergeCells('A1:B1');
+  const titleCell = legend.getCell('A1');
+  titleCell.value = 'ตัวอย่างสีและคำอธิบายสถานะ';
+  titleCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 13 };
+  titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+  titleCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF14532D' }
+  };
+  legend.getRow(1).height = 24;
+
+  const legendHeader = legend.getRow(2);
+  legendHeader.values = ['ตัวอย่างสี', 'ความหมาย'];
   legendHeader.font = { bold: true, color: { argb: 'FFFFFFFF' } };
   legendHeader.eachCell((cell) => {
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FF1F6D3A' }
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'left' };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFB8C4D6' } },
+      left: { style: 'thin', color: { argb: 'FFB8C4D6' } },
+      bottom: { style: 'thin', color: { argb: 'FFB8C4D6' } },
+      right: { style: 'thin', color: { argb: 'FFB8C4D6' } }
     };
   });
 
@@ -88,32 +108,84 @@ const addLegendWorksheet = (workbook) => {
     meaning: 'คืนหนังสือเรียบร้อย (ปิดรายการ)'
   });
   setRowColor(returnedRow, 'returned');
+
+  [3, 4, 5, 6].forEach((rowNumber) => {
+    const row = legend.getRow(rowNumber);
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFD4DCE8' } },
+        left: { style: 'thin', color: { argb: 'FFD4DCE8' } },
+        bottom: { style: 'thin', color: { argb: 'FFD4DCE8' } },
+        right: { style: 'thin', color: { argb: 'FFD4DCE8' } }
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'left' };
+      cell.font = { color: { argb: 'FF102A43' } };
+    });
+  });
 };
 
 const sendExcel = async (res, filename, sheetName, headers, rows, statusResolver) => {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet(sheetName);
 
-  sheet.columns = headers.map((header) => ({
+  sheet.columns = [{ header: '#', key: '__rowNo', width: 7 }, ...headers].map((header) => ({
     header: header.label,
     key: header.key,
     width: header.width || 20
   }));
 
+  sheet.views = [{ state: 'frozen', ySplit: 1 }];
+  sheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: sheet.columns.length }
+  };
+
   const headerRow = sheet.getRow(1);
   headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.height = 22;
   headerRow.eachCell((cell) => {
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FF1F6D3A' }
     };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFB8C4D6' } },
+      left: { style: 'thin', color: { argb: 'FFB8C4D6' } },
+      bottom: { style: 'thin', color: { argb: 'FFB8C4D6' } },
+      right: { style: 'thin', color: { argb: 'FFB8C4D6' } }
+    };
   });
 
-  rows.forEach((item) => {
-    const row = sheet.addRow(item);
+  rows.forEach((item, index) => {
+    const row = sheet.addRow({
+      __rowNo: index + 1,
+      ...item
+    });
     const status = statusResolver ? statusResolver(item) : null;
     setRowColor(row, status);
+
+    row.eachCell((cell, colNumber) => {
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFD4DCE8' } },
+        left: { style: 'thin', color: { argb: 'FFD4DCE8' } },
+        bottom: { style: 'thin', color: { argb: 'FFD4DCE8' } },
+        right: { style: 'thin', color: { argb: 'FFD4DCE8' } }
+      };
+
+      if (colNumber === 1) {
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      } else {
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+      }
+    });
+  });
+
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber > 1) {
+      row.height = 20;
+    }
   });
 
   addLegendWorksheet(workbook);

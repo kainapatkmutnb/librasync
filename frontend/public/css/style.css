@@ -362,12 +362,19 @@ body {
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: var(--shadow);
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
 }
 
 .btn-excel:hover {
   background: linear-gradient(135deg, #16a34a 0%, #166534 100%);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-hover);
+  box-shadow: 0 12px 28px rgba(22, 101, 52, 0.35);
+}
+
+.btn-excel:active {
+  transform: translateY(0);
 }
 
 .btn-excel i {
@@ -575,9 +582,16 @@ body {
   flex-wrap: wrap;
 }
 
+.report-tabs .btn {
+  min-width: 158px;
+  border-radius: 14px;
+  font-weight: 600;
+}
+
 .report-controls {
   flex-direction: column;
   align-items: flex-start;
+  gap: 0.85rem;
 }
 
 .report-filter-form {
@@ -586,10 +600,11 @@ body {
   flex-wrap: wrap;
   align-items: center;
   width: 100%;
-  background: var(--bg-card);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%), var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  padding: 0.85rem;
+  padding: 0.95rem;
+  box-shadow: var(--shadow);
 }
 
 .report-filter-field {
@@ -615,6 +630,13 @@ body {
   min-height: 40px;
 }
 
+.report-filter-form input:focus,
+.report-filter-form select:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+
 .report-filter-form input[type="text"] {
   min-width: 180px;
 }
@@ -631,7 +653,8 @@ body {
 }
 
 .controls .report-filter-actions .btn {
-  min-width: 118px;
+  min-width: 132px;
+  min-height: 44px;
   justify-content: center;
 }
 
