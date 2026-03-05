@@ -8,6 +8,8 @@ const router = express.Router();
 
 router.use(requireUserOrAdmin);
 
+const EXCEL_FONT_FAMILY = 'Sukhumvit Set';
+
 const normalizeDate = (value) => {
   if (!value) return '';
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '';
@@ -58,7 +60,7 @@ const addLegendWorksheet = (workbook) => {
   legend.mergeCells('A1:B1');
   const titleCell = legend.getCell('A1');
   titleCell.value = 'ตัวอย่างสีและคำอธิบายสถานะ';
-  titleCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 13 };
+  titleCell.font = { name: EXCEL_FONT_FAMILY, bold: true, color: { argb: 'FFFFFFFF' }, size: 13 };
   titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
   titleCell.fill = {
     type: 'pattern',
@@ -69,7 +71,7 @@ const addLegendWorksheet = (workbook) => {
 
   const legendHeader = legend.getRow(2);
   legendHeader.values = ['ตัวอย่างสี', 'ความหมาย'];
-  legendHeader.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  legendHeader.font = { name: EXCEL_FONT_FAMILY, bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
   legendHeader.eachCell((cell) => {
     cell.fill = {
       type: 'pattern',
@@ -120,6 +122,7 @@ const addLegendWorksheet = (workbook) => {
       };
       cell.alignment = { vertical: 'middle', horizontal: 'left' };
       cell.font = { color: { argb: 'FF102A43' } };
+      cell.font = { name: EXCEL_FONT_FAMILY, color: { argb: 'FF102A43' }, size: 11 };
     });
   });
 };
@@ -141,7 +144,7 @@ const sendExcel = async (res, filename, sheetName, headers, rows, statusResolver
   };
 
   const headerRow = sheet.getRow(1);
-  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.font = { name: EXCEL_FONT_FAMILY, bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
   headerRow.height = 22;
   headerRow.eachCell((cell) => {
     cell.fill = {
@@ -179,6 +182,8 @@ const sendExcel = async (res, filename, sheetName, headers, rows, statusResolver
       } else {
         cell.alignment = { vertical: 'middle', horizontal: 'left' };
       }
+
+      cell.font = { name: EXCEL_FONT_FAMILY, size: 11, color: { argb: 'FF102A43' } };
     });
   });
 
