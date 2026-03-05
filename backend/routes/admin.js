@@ -7,8 +7,8 @@ const sequelize = require('../config/database');
 
 const createBackupBeforeReset = () => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const backupDir = path.resolve(__dirname, '..', 'backups');
-  const databaseFile = path.resolve(__dirname, '..', 'database.sqlite');
+  const backupDir = path.resolve(__dirname, '..', '..', 'backups');
+  const databaseFile = path.resolve(__dirname, '..', '..', 'database.sqlite');
   const backupFileName = `database-reset-backup-${timestamp}.sqlite`;
   const backupPath = path.join(backupDir, backupFileName);
 

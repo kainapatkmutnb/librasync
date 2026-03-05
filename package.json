@@ -2,13 +2,18 @@
   "name": "librasync",
   "version": "1.0.0",
   "description": "LibraSync - ระบบจัดการห้องสมุด (Library Management System)",
-  "main": "app.js",
+  "main": "backend/app.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
+    "start": "concurrently --names Backend,Frontend --prefix-colors blue,green \"npm run start:backend\" \"npm run start:frontend\"",
+    "dev": "concurrently --names Backend,Frontend --prefix-colors blue,green \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "start:backend": "node backend/app.js",
+    "start:frontend": "node frontend/app.js",
+    "dev:backend": "nodemon backend/app.js",
+    "dev:frontend": "nodemon frontend/app.js",
     "port:free": "node scripts/kill-port.js 3000",
-    "start:clean": "npm run port:free && npm start",
-    "dev:clean": "npm run port:free && npm run dev"
+    "port:free:all": "node scripts/kill-port.js 3000 && node scripts/kill-port.js 5173",
+    "start:clean": "npm run port:free:all && npm start",
+    "dev:clean": "npm run port:free:all && npm run dev"
   },
   "keywords": [
     "library",
@@ -21,6 +26,7 @@
   "license": "MIT",
   "dependencies": {
     "connect-flash": "^0.1.1",
+    "cors": "^2.8.5",
     "dotenv": "^17.3.1",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
@@ -32,6 +38,7 @@
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "nodemon": "^3.0.2"
   }
 }

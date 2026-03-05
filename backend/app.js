@@ -1,13 +1,10 @@
 const express = require('express');
-const session = require('express-session');
-const flash = require('connect-flash');
+const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { QueryTypes } = require('sequelize');
-const path = require('path');
 require('dotenv').config();
 
-// Import routes
 const indexRoutes = require('./routes/index');
 const authorRoutes = require('./routes/authors');
 const bookRoutes = require('./routes/books');
@@ -16,23 +13,16 @@ const loanRoutes = require('./routes/loans');
 const reportRoutes = require('./routes/reports');
 const adminRoutes = require('./routes/admin');
 
-// Import models for syncing
 const { sequelize } = require('./models');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const isProduction = process.env.NODE_ENV === 'production';
+const PORT = Number(process.env.BACKEND_PORT || 3000);
 const enableSeedOnStart = process.env.ENABLE_SEED === 'true';
 
-if (isProduction) {
-  app.set('trust proxy', 1);
-}
+app.use(cors({
+  origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173'
+}));
 
-// View engine setup
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
-// Middleware
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false
@@ -45,95 +35,105 @@ app.use(rateLimit({
   legacyHeaders: false
 }));
 
-app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.urlencoded({ extended: true }));
 
-// Session configuration
-const sessionSecret = process.env.SESSION_SECRET || 'dev-only-change-me';
-
-app.use(session({
-  secret: sessionSecret,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: isProduction,
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 1000 * 60 * 60 * 24
-  }
-}));
-
-// Flash messages
-app.use(flash());
-
-// Global variables for templates
 app.use((req, res, next) => {
-  res.locals.success = req.flash('success');
-  res.locals.error = req.flash('error');
+  req._apiFlashes = { success: [], error: [] };
+  req.flash = (type, message) => {
+    if (!type) return [];
+
+    if (message === undefined) {
+      return req._apiFlashes[type] || [];
+    }
+
+    if (!req._apiFlashes[type]) {
+      req._apiFlashes[type] = [];
+    }
+
+    req._apiFlashes[type].push(message);
+    return req._apiFlashes[type];
+  };
+
   next();
 });
 
-// Routes
-app.use('/', indexRoutes);
-app.use('/authors', authorRoutes);
-app.use('/books', bookRoutes);
-app.use('/members', memberRoutes);
-app.use('/loans', loanRoutes);
-app.use('/reports', reportRoutes);
-app.use('/admin', adminRoutes);
+app.use((req, res, next) => {
+  const originalRender = res.render.bind(res);
+  const originalRedirect = res.redirect.bind(res);
 
-// 404 Error Handler
-app.use((req, res) => {
-  res.status(404).render('error', {
-    title: '404 - ไม่พบหน้า',
-    message: 'ขออภัย ไม่พบหน้าที่คุณต้องการ',
-    error: { status: 404 }
-  });
+  res.render = (view, data = {}) => {
+    if (res.headersSent) {
+      return undefined;
+    }
+
+    return res.json({
+      view,
+      data,
+      flashes: req._apiFlashes
+    });
+  };
+
+  res.redirect = (location) => {
+    if (res.headersSent) {
+      return undefined;
+    }
+
+    return res.json({
+      redirect: location,
+      flashes: req._apiFlashes
+    });
+  };
+
+  res._originalRender = originalRender;
+  res._originalRedirect = originalRedirect;
+
+  next();
 });
 
-// 500 Error Handler
+app.use('/api', indexRoutes);
+app.use('/api/authors', authorRoutes);
+app.use('/api/books', bookRoutes);
+app.use('/api/members', memberRoutes);
+app.use('/api/loans', loanRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/admin', adminRoutes);
+
+app.use((req, res) => {
+  res.status(404).json({ message: 'Not found' });
+});
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).render('error', {
-    title: '500 - เกิดข้อผิดพลาด',
-    message: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์',
-    error: process.env.NODE_ENV === 'development' ? err : {}
-  });
+  res.status(500).json({ message: 'Internal server error' });
 });
 
-// Sync database and start server
 async function startServer() {
   try {
-    // Sync all models
     await sequelize.sync();
     await ensureDataConstraints();
-    console.log('Database synchronized successfully');
-    
-    // Seed initial data if explicitly enabled
+    console.log('Backend database synchronized successfully');
+
     if (enableSeedOnStart) {
       await seedData();
-    } else {
-      console.log('Seed on start disabled (set ENABLE_SEED=true to enable).');
     }
-    
-    // Start server
+
     const server = app.listen(PORT, () => {
-      console.log(`LibraSync server is running on http://localhost:${PORT}`);
+      console.log(`Backend API running on http://localhost:${PORT}/api`);
     });
 
     server.on('error', (error) => {
       if (error.code === 'EADDRINUSE') {
         console.error(`Port ${PORT} is already in use.`);
-        console.error('Close the existing process, then run npm start or npm run dev again.');
         process.exit(1);
       }
 
-      console.error('Server failed to start:', error);
+      console.error('Backend failed to start:', error);
       process.exit(1);
     });
   } catch (error) {
-    console.error('Unable to start server:', error);
+    console.error('Unable to start backend:', error);
+    process.exit(1);
   }
 }
 
@@ -278,19 +278,15 @@ async function runOneTimeIsbnNormalizationMigration() {
   }
 }
 
-// Seed initial data
 async function seedData() {
   const { Author, Book, Member, LoanRecord } = require('./models');
-  
+
   try {
-    // Check if data already exists
     const authorCount = await Author.count();
     if (authorCount > 0) {
-      console.log('Data already seeded, skipping...');
       return;
     }
-    
-    // Create authors
+
     const authors = await Author.bulkCreate([
       {
         full_name: 'Robert C. Martin',
@@ -305,9 +301,7 @@ async function seedData() {
         biography: 'นักเขียนไทยผู้มีผลงานวรรณกรรมมากมาย'
       }
     ]);
-    console.log('Authors seeded');
-    
-    // Create books
+
     const books = await Book.bulkCreate([
       {
         title: 'Clean Code',
@@ -334,9 +328,7 @@ async function seedData() {
         borrowed_copies: 0
       }
     ]);
-    console.log('Books seeded');
-    
-    // Create members
+
     const members = await Member.bulkCreate([
       {
         full_name: 'สมชาย ใจดี',
@@ -351,22 +343,16 @@ async function seedData() {
         joined_date: '2024-02-01'
       }
     ]);
-    console.log('Members seeded');
-    
-    // Create loan record
+
     await LoanRecord.create({
       book_id: books[1].id,
       member_id: members[0].id,
       borrow_date: '2025-01-28',
       return_date: null
     });
-    console.log('Loan records seeded');
-    
-    console.log('All data seeded successfully!');
   } catch (error) {
     console.error('Error seeding data:', error);
   }
 }
 
-// Start the server
 startServer();
