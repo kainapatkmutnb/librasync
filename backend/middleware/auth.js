@@ -4,7 +4,15 @@ const parseAuthUserHeader = (headerValue) => {
   }
 
   try {
-    const parsed = JSON.parse(headerValue);
+    const tryParse = (value) => {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
+    };
+
+    const parsed = tryParse(headerValue) || tryParse(decodeURIComponent(headerValue));
     if (!parsed || typeof parsed !== 'object') {
       return null;
     }

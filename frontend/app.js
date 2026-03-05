@@ -90,13 +90,14 @@ app.all('*', async (req, res) => {
     const apiUrl = buildApiUrl(req.originalUrl);
     const method = req.method.toUpperCase();
     const canHaveBody = !['GET', 'HEAD'].includes(method);
+    const encodedAuthUserHeader = encodeURIComponent(JSON.stringify(req.session.authUser || null));
 
     const response = await fetch(apiUrl, {
       method,
       headers: {
         ...(canHaveBody ? { 'Content-Type': 'application/json' } : {}),
         'x-proxy-secret': proxySecret,
-        'x-auth-user': JSON.stringify(req.session.authUser || null)
+        'x-auth-user': encodedAuthUserHeader
       },
       body: canHaveBody ? JSON.stringify(req.body || {}) : undefined
     });
