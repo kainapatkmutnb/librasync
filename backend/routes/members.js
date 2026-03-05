@@ -76,7 +76,9 @@ router.get('/new', (req, res) => {
     account: null,
     formData: req.flash('formData')[0] || {},
     errors: req.flash('errors') || [],
-    formMode: 'admin'
+    formMode: 'admin',
+    submitAction: '/members',
+    cancelPath: '/members'
   });
 });
 
@@ -169,7 +171,9 @@ router.get('/:id/edit', async (req, res) => {
       account: member.UserAccount || null,
       formData: req.flash('formData')[0] || {},
       errors: req.flash('errors') || [],
-      formMode: 'admin'
+      formMode: 'admin',
+      submitAction: `/members/${member.id}/update`,
+      cancelPath: '/members'
     });
   } catch (error) {
     console.error(error);

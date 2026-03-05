@@ -3,6 +3,8 @@
 <div class="form-container">
   <% const isRegisterMode = formMode === 'register'; %>
   <% const isEditMode = !!member; %>
+  <% const resolvedSubmitAction = typeof submitAction !== 'undefined' && submitAction ? submitAction : (member ? '/members/' + member.id + '/update' : '/members'); %>
+  <% const resolvedCancelPath = typeof cancelPath !== 'undefined' && cancelPath ? cancelPath : '/members'; %>
   <h1><%= isRegisterMode ? 'สมัครสมาชิก' : (isEditMode ? 'แก้ไขสมาชิก' : 'เพิ่มสมาชิก') %></h1>
   
   <% if (errors && errors.length > 0) { %>
@@ -15,7 +17,7 @@
     </div>
   <% } %>
   
-  <form method="POST" action="<%= submitAction || (member ? '/members/' + member.id + '/update' : '/members') %>">
+  <form method="POST" action="<%= resolvedSubmitAction %>">
     <div class="form-group">
       <label for="full_name">ชื่อ-นามสกุล <span class="required">*</span></label>
       <input 
@@ -121,7 +123,7 @@
     
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">💾 บันทึก</button>
-      <a href="<%= cancelPath || '/members' %>" class="btn btn-light">ยกเลิก</a>
+      <a href="<%= resolvedCancelPath %>" class="btn btn-light">ยกเลิก</a>
     </div>
   </form>
 </div>
