@@ -72,7 +72,7 @@ Browser
 ## 📁 Project Structure
 
 ```text
-librasync2_net/
+librasync/
 ├─ backend/
 │  ├─ app.js
 │  ├─ config/database.js
