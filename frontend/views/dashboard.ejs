@@ -2,6 +2,7 @@
 
 <div class="dashboard">
   <h1>แดชบอร์ด</h1>
+  <% const isAdmin = currentUser && currentUser.role === 'admin'; %>
 
   <div class="stats-grid">
     <div class="stat-card">
@@ -143,71 +144,73 @@
     </div>
   </div>
 
-  <div class="dashboard-grid-two">
-    <div class="dashboard-panel">
-      <h2>Top 10 หนังสือที่ถูกยืมมากที่สุด</h2>
-      <% if (topBooks && topBooks.length > 0) { %>
-        <div class="table-center-shell">
-        <table class="data-table dashboard-table">
-          <thead>
-            <tr>
-              <th>อันดับ</th>
-              <th>ชื่อหนังสือ</th>
-              <th>ผู้แต่ง</th>
-              <th>ยืมทั้งหมด</th>
-              <th>กำลังยืม</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% topBooks.forEach((book, index) => { %>
+  <% if (isAdmin) { %>
+    <div class="dashboard-grid-two">
+      <div class="dashboard-panel">
+        <h2>Top 10 หนังสือที่ถูกยืมมากที่สุด</h2>
+        <% if (topBooks && topBooks.length > 0) { %>
+          <div class="table-center-shell">
+          <table class="data-table dashboard-table">
+            <thead>
               <tr>
-                <td><%= index + 1 %></td>
-                <td><%= book.title %></td>
-                <td><%= book.author %></td>
-                <td><%= book.total_borrows %></td>
-                <td><%= book.active_borrows %></td>
+                <th>อันดับ</th>
+                <th>ชื่อหนังสือ</th>
+                <th>ผู้แต่ง</th>
+                <th>ยืมทั้งหมด</th>
+                <th>กำลังยืม</th>
               </tr>
-            <% }) %>
-          </tbody>
-        </table>
-        </div>
-      <% } else { %>
-        <p class="no-data">ยังไม่มีข้อมูลหนังสือ</p>
-      <% } %>
-    </div>
+            </thead>
+            <tbody>
+              <% topBooks.forEach((book, index) => { %>
+                <tr>
+                  <td><%= index + 1 %></td>
+                  <td><%= book.title %></td>
+                  <td><%= book.author %></td>
+                  <td><%= book.total_borrows %></td>
+                  <td><%= book.active_borrows %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          </div>
+        <% } else { %>
+          <p class="no-data">ยังไม่มีข้อมูลหนังสือ</p>
+        <% } %>
+      </div>
 
-    <div class="dashboard-panel">
-      <h2>Top 10 สมาชิกที่ยืมมากที่สุด</h2>
-      <% if (topMembers && topMembers.length > 0) { %>
-        <div class="table-center-shell">
-        <table class="data-table dashboard-table">
-          <thead>
-            <tr>
-              <th>อันดับ</th>
-              <th>ชื่อสมาชิก</th>
-              <th>ยืมทั้งหมด</th>
-              <th>กำลังยืม</th>
-              <th>ล่าสุดที่ยืม</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% topMembers.forEach((member, index) => { %>
+      <div class="dashboard-panel">
+        <h2>Top 10 สมาชิกที่ยืมมากที่สุด</h2>
+        <% if (topMembers && topMembers.length > 0) { %>
+          <div class="table-center-shell">
+          <table class="data-table dashboard-table">
+            <thead>
               <tr>
-                <td><%= index + 1 %></td>
-                <td><%= member.full_name %></td>
-                <td><%= member.total_borrows %></td>
-                <td><%= member.active_borrows %></td>
-                <td><%= member.last_borrow_date ? new Date(member.last_borrow_date).toLocaleDateString('th-TH') : '-' %></td>
+                <th>อันดับ</th>
+                <th>ชื่อสมาชิก</th>
+                <th>ยืมทั้งหมด</th>
+                <th>กำลังยืม</th>
+                <th>ล่าสุดที่ยืม</th>
               </tr>
-            <% }) %>
-          </tbody>
-        </table>
-        </div>
-      <% } else { %>
-        <p class="no-data">ยังไม่มีข้อมูลสมาชิก</p>
-      <% } %>
+            </thead>
+            <tbody>
+              <% topMembers.forEach((member, index) => { %>
+                <tr>
+                  <td><%= index + 1 %></td>
+                  <td><%= member.full_name %></td>
+                  <td><%= member.total_borrows %></td>
+                  <td><%= member.active_borrows %></td>
+                  <td><%= member.last_borrow_date ? new Date(member.last_borrow_date).toLocaleDateString('th-TH') : '-' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          </div>
+        <% } else { %>
+          <p class="no-data">ยังไม่มีข้อมูลสมาชิก</p>
+        <% } %>
+      </div>
     </div>
-  </div>
+  <% } %>
 
   <div class="dashboard-panel">
     <h2>ค้นหาสมาชิกแบบรวดเร็ว</h2>
@@ -293,16 +296,18 @@
     <% } %>
   </div>
 
-  <div class="quick-actions no-print">
-    <h2>ทำงานด่วน</h2>
-    <div class="action-buttons">
-      <a href="/authors/new" class="btn btn-primary">➕ เพิ่มผู้แต่ง</a>
-      <a href="/books/new" class="btn btn-primary">➕ เพิ่มหนังสือ</a>
-      <a href="/members/new" class="btn btn-primary">➕ เพิ่มสมาชิก</a>
-      <a href="/loans/new" class="btn btn-primary">📤 ยืมหนังสือ</a>
-      <a href="/reports/active-loans" class="btn btn-secondary">📊 ดูรายงาน</a>
+  <% if (isAdmin) { %>
+    <div class="quick-actions no-print">
+      <h2>ทำงานด่วน</h2>
+      <div class="action-buttons">
+        <a href="/authors/new" class="btn btn-primary">➕ เพิ่มผู้แต่ง</a>
+        <a href="/books/new" class="btn btn-primary">➕ เพิ่มหนังสือ</a>
+        <a href="/members/new" class="btn btn-primary">➕ เพิ่มสมาชิก</a>
+        <a href="/loans/new" class="btn btn-primary">📤 ยืมหนังสือ</a>
+        <a href="/reports/active-loans" class="btn btn-secondary">📊 ดูรายงาน</a>
+      </div>
     </div>
-  </div>
+  <% } %>
 </div>
 
 <%- include('partials/footer') %>
