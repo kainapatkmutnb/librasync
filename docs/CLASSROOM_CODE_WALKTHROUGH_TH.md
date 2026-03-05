@@ -4,28 +4,40 @@
 
 ## 1) ภาพรวมการไหลของระบบ
 
-1. `app.js` บูตเซิร์ฟเวอร์ + middleware + route
-2. `models/*` กำหนดโครงสร้างข้อมูลและความสัมพันธ์
-3. `routes/*` ทำ business logic และ query
-4. `views/*` แสดงผลหน้าเว็บด้วย EJS
-5. `public/*` จัดการ UI/UX (CSS + dark mode)
+1. Browser เรียก `frontend/app.js` (EJS + session + flash)
+2. Frontend proxy request ไป `backend/app.js` พร้อม header (`x-proxy-secret`, `x-auth-user`)
+3. Backend ตรวจ proxy trust + attach user + RBAC แล้วทำ business logic ใน `routes/*`
+4. Backend ตอบกลับเป็น JSON payload แบบ `view` / `redirect`
+5. Frontend แปลง payload ไป render EJS หรือ redirect ให้ผู้ใช้
+6. ข้อมูลจริงเก็บใน SQLite (`database.sqlite`) ผ่าน Sequelize models
 
 ---
 
 ## 2) app.js อธิบายตามลำดับ
 
-- โหลด dependency (`express`, `session`, `flash`, `helmet`, `rateLimit`, `dotenv`)
-- ตั้งค่า view engine เป็น EJS
-- เปิด security middleware
-- ตั้งค่า session/cookie
-- inject flash ไป `res.locals` เพื่อแสดงผลทุกหน้า
-- map route (`/authors`, `/books`, `/members`, `/loans`, `/reports`, `/admin`)
-- 404/500 handler
-- `startServer()`
+### `frontend/app.js`
+- ตั้งค่า EJS, static files, session cookie และ flash
+- ตั้ง `res.locals.currentUser`, `success`, `error` ให้ทุกหน้า
+- ทุกเส้นทางใช้ `app.all('*')` เพื่อ proxy ไป backend
+- ส่ง `x-auth-user` แบบ URL-encoded JSON (แก้ปัญหาอักขระไทยใน header)
+- รองรับ response พิเศษ:
+  - JSON payload (`view`/`redirect`)
+  - ไฟล์ Excel (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`)
+
+### `backend/app.js`
+- เปิด `cors`, `helmet`, `express-rate-limit`
+- ใช้ `requireProxyTrust` + `attachCurrentUser` ที่ prefix `/api`
+- override `res.render`/`res.redirect` ให้ตอบเป็น JSON payload กลับ frontend
+- map routes:
+  - `/api/auth`
+  - `/api` (dashboard)
+  - `/api/authors`, `/api/books`, `/api/members`, `/api/loans`, `/api/reports`, `/api/admin`
+- `startServer()`:
   - `sequelize.sync()`
-  - `ensureDataConstraints()`
-  - one-time migration ISBN
-  - optional seed (เมื่อ `ENABLE_SEED=true`)
+  - `ensureDataConstraints()` (index/constraint + data fix)
+  - one-time ISBN normalization migration
+  - bootstrap admin จาก `.env` ถ้ายังไม่มี admin
+  - optional seed เมื่อ `ENABLE_SEED=true`
 
 ---
 
@@ -46,50 +58,90 @@
 - เก็บประวัติยืม-คืน
 - `return_date = null` หมายถึงยังไม่คืน
 
+### UserAccount.js
+- เก็บบัญชีล็อกอิน
+- ผูกกับสมาชิกผ่าน `member_id` (unique)
+- มี role: `admin` / `user`
+
 ### index.js
 - กำหนด association:
   - Author 1:N Book
   - Book 1:N LoanRecord
   - Member 1:N LoanRecord
+  - Member 1:1 UserAccount (ลบสมาชิกแล้วลบบัญชีตาม)
 
 ---
 
-## 4) middleware/validate.js
+## 4) middleware
 
-- รวม validation rules สำหรับ authors/books/members/loans
+### `middleware/auth.js`
+- `requireProxyTrust`: ตรวจ `AUTH_PROXY_SECRET`
+- `attachCurrentUser`: parse `x-auth-user` (รองรับทั้ง raw JSON และ decodeURIComponent)
+- `requireLogin`: บังคับล็อกอินก่อนเข้าระบบหลัก
+
+### `middleware/rbac.js`
+- `requireAdmin`: จำกัดสิทธิ์เฉพาะ admin
+- `requireUserOrAdmin`: ให้ผ่านเฉพาะ role ที่อนุญาต
+
+### `middleware/validate.js`
+- รวม validation rules สำหรับ `authors/books/members/auth/loans`
 - ฟังก์ชัน `validate()`:
   - รัน rule ทั้งหมด
   - ถ้าผิด: flash error + flash formData + redirect กลับ
+- มี duplicate validators (ชื่อผู้แต่ง/หนังสือ/สมาชิก/username)
+
 
 ---
 
 ## 5) routes สำคัญ
 
+### `routes/auth.js`
+- `GET /auth/login`, `POST /auth/login`
+- `GET /auth/register`, `POST /auth/register`
+- register ทำ transaction: สร้าง `Member` + `UserAccount`
+- login/logout ใช้ `req._authSession` เพื่อ sync session ผ่าน frontend proxy
+
 ### routes/index.js (Dashboard)
-- คำนวณตัวเลข summary
-- ดึง recent activities
+- คำนวณ stats หลัก + trends 7/30/90 วัน
+- ดึง top books / top members / recent activities
+- รองรับ member quick lookup (ดึงประวัติการยืมรายสมาชิก)
+- มี role-based scope: user เห็นเฉพาะข้อมูลของตัวเอง
+
+### routes/authors.js
+- list + search + pagination
+- duplicate check endpoint
+- create/update/delete จำกัด admin
 
 ### routes/books.js
 - ค้นหา + filter + pagination
 - สร้าง ISBN อัตโนมัติ
 - normalize ISBN
 - update จำนวนสำเนา และป้องกันกรณี total น้อยกว่าจำนวนที่ถูกยืม
+- ตรวจชื่อหนังสือซ้ำแบบ realtime
 
 ### routes/loans.js
 - ยืมและคืนแบบ transaction
 - ยืม: เพิ่ม LoanRecord + เพิ่ม `borrowed_copies`
 - คืน: ใส่ `return_date` + ลด `borrowed_copies`
+- user ถูกบังคับให้ใช้ `member_id` ของตัวเอง
 
 ### routes/reports.js
 - active loans
 - loan history
 - member borrow summary
-- export CSV
+- filter หลายเงื่อนไข (วันที่, member, status, keyword, min borrows)
+- export ด้วย query `?format=csv` แต่ไฟล์ที่ส่งจริงเป็น Excel (`.xlsx`)
 - helper: `normalizeDate`, `parseMemberId`
+- ใส่สีตามสถานะ + worksheet คำอธิบายสี + ฟอนต์ `Sukhumvit Set`
 
 ### routes/admin.js
-- `/admin/health` ตรวจสุขภาพฐานข้อมูล
-- `/admin/reset-data` ล้างข้อมูลทั้งหมดพร้อม backup และยืนยันรหัส
+- `/admin/health` ตรวจ integrity/index/duplicate/consistency
+- `/admin/reset-data` สำรองฐานข้อมูลก่อน แล้วล้างตารางหลัก โดยต้องใช้ `ADMIN_RESET_CODE`
+
+### routes/members.js
+- จัดการสมาชิก (admin only)
+- create/update แบบ transaction ร่วมกับ `UserAccount`
+- ป้องกันข้อมูลซ้ำ (อีเมล/username)
 
 ---
 
@@ -97,12 +149,15 @@
 
 ### views/partials/header.ejs
 - เมนูหลักของระบบ
-- แสดง flash success/error
+- แสดงเมนูตาม role
+- มีปุ่มสลับธีม + ปุ่ม logout
 
 ### views/dashboard.ejs
 - stats cards
+- trend charts 7/30/90
+- member quick lookup
 - recent activities
-- quick actions
+- quick actions และตาราง Top 10 (เฉพาะ admin)
 
 ### views/books/form.ejs
 - ISBN readonly + ปุ่มสุ่ม ISBN ใหม่
@@ -114,7 +169,15 @@
 
 ### views/reports/loan-history.ejs
 - ฟิลเตอร์แบบช่วงวันที่ยืม + ช่วงวันที่คืน
-- สรุปรายการ
+- สรุปรายการ + สถานะกำลังยืม/คืนแล้ว
+
+### views/reports/active-loans.ejs
+- ฟิลเตอร์วันที่และสมาชิก
+- ปุ่ม "ดาวน์โหลด Excel"
+
+### views/reports/member-borrow-summary.ejs
+- ฟิลเตอร์ keyword/min borrows/เลือกสมาชิกเจาะรายละเอียด
+- ตารางสรุป + ตารางรายละเอียดหนังสือรายสมาชิก
 
 ### views/admin/health.ejs
 - integrity/index/consistency checks
@@ -129,6 +192,8 @@
 - report filter layout
 - loan history date-range layout
 - danger-zone style
+- report controls + excel button
+- nav/logout alignment + role-based dashboard blocks
 
 ---
 
@@ -145,6 +210,12 @@
 
 4. ทำไมไม่ seed อัตโนมัติทุกครั้ง?
 - เพื่อไม่ให้ข้อมูลทดสอบเดิมย้อนกลับมาเอง
+
+5. ทำไมระบบแยก frontend กับ backend?
+- แยกหน้าที่ชัดเจน: frontend จัดการ session/UI, backend รวม business logic และ data access
+
+6. ทำไม query `format=csv` แต่ได้ไฟล์ `.xlsx`?
+- legacy query name เดิมถูกคงไว้ แต่ implementation ปัจจุบัน export ผ่าน `exceljs` เป็น Excel จริง
 
 ---
 
