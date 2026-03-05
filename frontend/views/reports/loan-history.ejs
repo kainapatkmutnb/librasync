@@ -50,7 +50,7 @@
     <div class="report-filter-actions">
       <button type="submit" class="btn btn-success">กรอง</button>
       <a href="/reports/loan-history" class="btn btn-neutral">ล้าง</a>
-      <a href="/reports/loan-history?from=<%= encodeURIComponent(filters && filters.from ? filters.from : '') %>&to=<%= encodeURIComponent(filters && filters.to ? filters.to : '') %>&returned_from=<%= encodeURIComponent(filters && filters.returned_from ? filters.returned_from : '') %>&returned_to=<%= encodeURIComponent(filters && filters.returned_to ? filters.returned_to : '') %>&member_id=<%= encodeURIComponent(filters && filters.member_id ? filters.member_id : '') %>&status=<%= encodeURIComponent(filters && filters.status ? filters.status : 'all') %>&format=csv" class="btn btn-light">⬇️ Excel</a>
+      <a href="/reports/loan-history?from=<%= encodeURIComponent(filters && filters.from ? filters.from : '') %>&to=<%= encodeURIComponent(filters && filters.to ? filters.to : '') %>&returned_from=<%= encodeURIComponent(filters && filters.returned_from ? filters.returned_from : '') %>&returned_to=<%= encodeURIComponent(filters && filters.returned_to ? filters.returned_to : '') %>&member_id=<%= encodeURIComponent(filters && filters.member_id ? filters.member_id : '') %>&status=<%= encodeURIComponent(filters && filters.status ? filters.status : 'all') %>&format=csv" class="btn btn-excel"><i class="fas fa-file-excel"></i> ดาวน์โหลด Excel</a>
     </div>
   </form>
 </div>

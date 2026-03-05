@@ -42,7 +42,7 @@
     <div class="report-filter-actions">
       <button type="submit" class="btn btn-success">กรอง</button>
       <a href="/reports/member-borrow-summary" class="btn btn-neutral">ล้าง</a>
-      <a href="/reports/member-borrow-summary?from=<%= encodeURIComponent(filters && filters.from ? filters.from : '') %>&to=<%= encodeURIComponent(filters && filters.to ? filters.to : '') %>&keyword=<%= encodeURIComponent(filters && filters.keyword ? filters.keyword : '') %>&min_borrows=<%= encodeURIComponent(filters && filters.min_borrows ? filters.min_borrows : 0) %>&detail_member_id=<%= encodeURIComponent(filters && filters.detail_member_id ? filters.detail_member_id : '') %>&format=csv" class="btn btn-light">⬇️ Excel</a>
+      <a href="/reports/member-borrow-summary?from=<%= encodeURIComponent(filters && filters.from ? filters.from : '') %>&to=<%= encodeURIComponent(filters && filters.to ? filters.to : '') %>&keyword=<%= encodeURIComponent(filters && filters.keyword ? filters.keyword : '') %>&min_borrows=<%= encodeURIComponent(filters && filters.min_borrows ? filters.min_borrows : 0) %>&detail_member_id=<%= encodeURIComponent(filters && filters.detail_member_id ? filters.detail_member_id : '') %>&format=csv" class="btn btn-excel"><i class="fas fa-file-excel"></i> ดาวน์โหลด Excel</a>
     </div>
   </form>
 </div>

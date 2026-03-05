@@ -27,8 +27,9 @@ const getScopedMemberId = (req, queryMemberId) => {
 };
 
 const colorMap = {
-  overdue: 'FFFFC7CE',
-  dueSoon: 'FFFFF2CC',
+  overdueCritical: 'FFF4CCCC',
+  overdueWarning: 'FFFFF2CC',
+  activeNormal: 'FFD9EAD3',
   returned: 'FFBDD7EE'
 };
 
@@ -54,13 +55,38 @@ const addLegendWorksheet = (workbook) => {
     { header: 'ความหมาย', key: 'meaning', width: 60 }
   ];
 
-  const overdueRow = legend.addRow({ status: 'สีแดง', meaning: 'Overdue: ค้างเกินกำหนด' });
-  setRowColor(overdueRow, 'overdue');
+  const legendHeader = legend.getRow(1);
+  legendHeader.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  legendHeader.eachCell((cell) => {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F6D3A' }
+    };
+  });
 
-  const dueSoonRow = legend.addRow({ status: 'สีเหลือง', meaning: 'Due soon/กำลังยืม: ใกล้ครบกำหนดหรือยังไม่คืน' });
-  setRowColor(dueSoonRow, 'dueSoon');
+  const overdueCriticalRow = legend.addRow({
+    status: 'ยืมเกิน 14 วัน',
+    meaning: 'เกินกำหนดมาก ควรติดตามคืนด่วน'
+  });
+  setRowColor(overdueCriticalRow, 'overdueCritical');
 
-  const returnedRow = legend.addRow({ status: 'สีน้ำเงิน', meaning: 'Returned: คืนเรียบร้อยแล้ว' });
+  const overdueWarningRow = legend.addRow({
+    status: 'ยืมเกิน 7 วัน',
+    meaning: 'ใกล้ถึงกำหนดหรือเกินเล็กน้อย ควรแจ้งเตือน'
+  });
+  setRowColor(overdueWarningRow, 'overdueWarning');
+
+  const activeNormalRow = legend.addRow({
+    status: 'ปกติ (แอคทีฟ)',
+    meaning: 'ยืมไม่เกิน 7 วัน ยังอยู่ในกำหนด'
+  });
+  setRowColor(activeNormalRow, 'activeNormal');
+
+  const returnedRow = legend.addRow({
+    status: 'คืนแล้ว',
+    meaning: 'คืนหนังสือเรียบร้อย (ปิดรายการ)'
+  });
   setRowColor(returnedRow, 'returned');
 };
 
@@ -75,7 +101,14 @@ const sendExcel = async (res, filename, sheetName, headers, rows, statusResolver
   }));
 
   const headerRow = sheet.getRow(1);
-  headerRow.font = { bold: true };
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F6D3A' }
+    };
+  });
 
   rows.forEach((item) => {
     const row = sheet.addRow(item);
@@ -168,7 +201,12 @@ router.get('/active-loans', async (req, res) => {
           { key: 'days_borrowed', label: 'จำนวนวัน', width: 14 }
         ],
         activeLoans,
-        (row) => (Number(row.days_borrowed) > 7 ? 'overdue' : 'dueSoon')
+        (row) => {
+          const daysBorrowed = Number(row.days_borrowed || 0);
+          if (daysBorrowed > 14) return 'overdueCritical';
+          if (daysBorrowed > 7) return 'overdueWarning';
+          return 'activeNormal';
+        }
       );
       return;
     }
@@ -295,8 +333,11 @@ router.get('/loan-history', async (req, res) => {
         loanHistory,
         (row) => {
           if (row.return_date) return 'returned';
-          if (Number(row.days_kept) > 7) return 'overdue';
-          return 'dueSoon';
+
+          const daysKept = Number(row.days_kept || 0);
+          if (daysKept > 14) return 'overdueCritical';
+          if (daysKept > 7) return 'overdueWarning';
+          return 'activeNormal';
         }
       );
       return;
@@ -445,7 +486,7 @@ router.get('/member-borrow-summary', async (req, res) => {
           { key: 'last_borrow_date', label: 'ยืมล่าสุด', width: 16 }
         ],
         memberBorrowSummary,
-        (row) => (Number(row.active_borrows) > 0 ? 'dueSoon' : 'returned')
+        (row) => (Number(row.active_borrows) > 0 ? 'activeNormal' : 'returned')
       );
       return;
     }
