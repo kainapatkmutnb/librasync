@@ -84,7 +84,6 @@ librasync2_net/
 │  ├─ public/{css/style.css,js/darkmode.js}
 │  └─ views/
 ├─ backups/
-├─ docs/
 ├─ scripts/kill-port.js
 ├─ database.sqlite
 ├─ package.json
