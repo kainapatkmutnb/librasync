@@ -313,21 +313,6 @@ npm run dev:clean
 | GET | `/api/admin/health` | ตรวจสุขภาพข้อมูลและ index ในฐานข้อมูล |
 | POST | `/api/admin/reset-data` | สำรองฐานข้อมูลและล้างข้อมูลทั้งหมด |
 
----
-
-## 🖼️ Screenshots (Optional)
-
-สามารถเพิ่มรูปได้ที่ `docs/images/` แล้วอ้างอิงใน README เช่น:
-
-```markdown
-![Dashboard](docs/images/dashboard.png)
-![Books](docs/images/books.png)
-![Loans](docs/images/loans.png)
-![Reports](docs/images/reports.png)
-```
-
----
-
 ## 🔮 Future Improvements
 
 - 🧪 เพิ่ม test อัตโนมัติ (unit/integration) สำหรับ auth, loans, reports
