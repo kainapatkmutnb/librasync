@@ -9,6 +9,8 @@ const router = express.Router();
 router.use(requireUserOrAdmin);
 
 const EXCEL_FONT_FAMILY = 'Sukhumvit Set';
+const EXCEL_FONT_SIZE = 16;
+const EXCEL_TITLE_FONT_SIZE = 18;
 
 const normalizeDate = (value) => {
   if (!value) return '';
@@ -60,7 +62,7 @@ const addLegendWorksheet = (workbook) => {
   legend.mergeCells('A1:B1');
   const titleCell = legend.getCell('A1');
   titleCell.value = 'ตัวอย่างสีและคำอธิบายสถานะ';
-  titleCell.font = { name: EXCEL_FONT_FAMILY, bold: true, color: { argb: 'FFFFFFFF' }, size: 13 };
+  titleCell.font = { name: EXCEL_FONT_FAMILY, bold: true, color: { argb: 'FFFFFFFF' }, size: EXCEL_TITLE_FONT_SIZE };
   titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
   titleCell.fill = {
     type: 'pattern',
@@ -71,7 +73,7 @@ const addLegendWorksheet = (workbook) => {
 
   const legendHeader = legend.getRow(2);
   legendHeader.values = ['ตัวอย่างสี', 'ความหมาย'];
-  legendHeader.font = { name: EXCEL_FONT_FAMILY, bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+  legendHeader.font = { name: EXCEL_FONT_FAMILY, bold: true, color: { argb: 'FFFFFFFF' }, size: EXCEL_FONT_SIZE };
   legendHeader.eachCell((cell) => {
     cell.fill = {
       type: 'pattern',
@@ -122,7 +124,7 @@ const addLegendWorksheet = (workbook) => {
       };
       cell.alignment = { vertical: 'middle', horizontal: 'left' };
       cell.font = { color: { argb: 'FF102A43' } };
-      cell.font = { name: EXCEL_FONT_FAMILY, color: { argb: 'FF102A43' }, size: 11 };
+      cell.font = { name: EXCEL_FONT_FAMILY, color: { argb: 'FF102A43' }, size: EXCEL_FONT_SIZE };
     });
   });
 };
@@ -144,7 +146,7 @@ const sendExcel = async (res, filename, sheetName, headers, rows, statusResolver
   };
 
   const headerRow = sheet.getRow(1);
-  headerRow.font = { name: EXCEL_FONT_FAMILY, bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+  headerRow.font = { name: EXCEL_FONT_FAMILY, bold: true, color: { argb: 'FFFFFFFF' }, size: EXCEL_FONT_SIZE };
   headerRow.height = 22;
   headerRow.eachCell((cell) => {
     cell.fill = {
@@ -183,7 +185,7 @@ const sendExcel = async (res, filename, sheetName, headers, rows, statusResolver
         cell.alignment = { vertical: 'middle', horizontal: 'left' };
       }
 
-      cell.font = { name: EXCEL_FONT_FAMILY, size: 11, color: { argb: 'FF102A43' } };
+      cell.font = { name: EXCEL_FONT_FAMILY, size: EXCEL_FONT_SIZE, color: { argb: 'FF102A43' } };
     });
   });
 
