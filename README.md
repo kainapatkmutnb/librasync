@@ -1,98 +1,70 @@
 # 📚 LibraSync
 
-## 🚀 Project Title
-
-**LibraSync — ระบบจัดการห้องสมุดแบบแยก Frontend/Backend พร้อม RBAC และรายงาน Excel**
-
-LibraSync คือระบบบริหารงานห้องสมุดที่ออกแบบให้แยกชั้นการทำงานชัดเจน: ฝั่งหน้าเว็บ (Frontend Server) ทำหน้าที่ render UI และจัดการ session ของผู้ใช้, ส่วนฝั่ง API (Backend Server) รับผิดชอบ business logic, validation, สิทธิ์การเข้าถึง และจัดการข้อมูลในฐานข้อมูล SQLite ผ่าน Sequelize
+**LibraSync** คือระบบจัดการห้องสมุดแบบแยก **Frontend Server** และ **Backend API** รองรับสิทธิ์ `admin` / `user`, จัดการข้อมูลหลักของห้องสมุด, และมีรายงานพร้อมส่งออก Excel
 
 ---
 
-## 🎯 System Overview
+## ✨ Features
 
-ระบบรองรับงานหลักของห้องสมุดดังนี้
-
-- 📖 จัดการข้อมูลผู้แต่ง, หนังสือ, สมาชิก, ประวัติยืม-คืน
-- 👤 ระบบผู้ใช้พร้อมสิทธิ์ `admin` / `user`
-- 🔐 Authentication: สมัครสมาชิก, เข้าสู่ระบบ, ออกจากระบบ
+- 🔐 ระบบยืนยันตัวตน: สมัครสมาชิก / เข้าสู่ระบบ / ออกจากระบบ
+- 👥 RBAC: แยกสิทธิ์ `admin` และ `user` ชัดเจน
+- 📖 CRUD ผู้แต่ง, หนังสือ, สมาชิก, รายการยืม-คืน
 - 🔗 ผูกบัญชีผู้ใช้กับสมาชิกแบบ 1:1 (`UserAccounts` ↔ `Members`)
-- ⚙️ ใช้ transaction กับงานสำคัญ (สมัครสมาชิก, เพิ่ม/แก้ไขสมาชิก, ยืม-คืน)
-- 🧾 รายงาน 3 แบบพร้อม export เป็นไฟล์ Excel (`.xlsx`) ผ่าน `exceljs`
-- 🎨 ไฟล์ Excel มีรูปแบบพร้อมใช้งาน: หัวตาราง, เส้นขอบ, เลขลำดับ, auto filter และชีตคำอธิบายสี
-- 🧪 หน้า Admin Health สำหรับตรวจความถูกต้องข้อมูลและ index
-- 🗂️ รีเซ็ตข้อมูลทั้งระบบพร้อมสร้างไฟล์ backup ก่อนล้างข้อมูล
-- 🌙 รองรับ Dark Mode ที่ฝั่งหน้าเว็บ
-
-พฤติกรรมตาม role ปัจจุบัน
-
-- `admin` เห็นข้อมูลรวมทั้งระบบ
-- `user` เห็นข้อมูล/รายการที่ scope เฉพาะ `member_id` ของตนเองใน dashboard, loans และ reports
-- บางส่วนใน dashboard แสดงเฉพาะ `admin` เช่น การ์ดสมาชิกรวม/หนังสือใกล้หมดสต็อก/สมาชิกค้างยืมหลายเล่ม, ตาราง Top 10 และกล่องทำงานด่วน
+- 📊 Dashboard สถิติ + แนวโน้ม 7/30/90 วัน + Top 10 (แสดงตาม role)
+- 🧾 Reports 3 แบบ พร้อม export ไฟล์ Excel (`.xlsx`) ด้วย `exceljs`
+- 🎨 รายงาน Excel มีสี 4 ระดับ + sheet คำอธิบายสี + auto filter + frozen header
+- 🧪 Admin Health ตรวจ integrity, duplicate, index, และ consistency
+- 🗂️ รีเซ็ตข้อมูลทั้งระบบพร้อม backup ฐานข้อมูลก่อนล้าง
+- 🌙 รองรับ Dark Mode
 
 ---
 
 ## 🏗️ Architecture
 
-### 1) Frontend Server
-
-- อยู่ที่ `frontend/app.js`
-- ใช้ EJS render หน้าเว็บ (`frontend/views/*`)
+### Frontend Server (`frontend/app.js`)
+- Render หน้าเว็บด้วย EJS
 - จัดการ session/flash (`express-session`, `connect-flash`)
-- รับ request จาก browser แล้ว proxy ต่อไป backend ทุกเส้นทาง (`app.all('*')`)
-- แนบ header ไป backend:
-  - `x-proxy-secret` (ตรวจความน่าเชื่อถือ proxy)
-  - `x-auth-user` (auth context จาก session)
+- รับ request จาก browser และ proxy ไป backend (`app.all('*')`)
+- ส่ง header สำคัญไป backend:
+  - `x-proxy-secret`
+  - `x-auth-user` (ส่งเป็น URL-encoded JSON เพื่อรองรับอักขระ non-ASCII)
 
-### 2) Backend API Server
+### Backend API (`backend/app.js`)
+- Endpoint ทุกตัวอยู่ใต้ prefix `/api`
+- middleware หลัก:
+  - `requireProxyTrust`
+  - `attachCurrentUser`
+  - `requireLogin`
+  - RBAC: `requireAdmin`, `requireUserOrAdmin`
+- ส่งผลลัพธ์เป็น JSON รูปแบบ `view` / `redirect` ให้ frontend ตัดสินใจ render/redirect
 
-- อยู่ที่ `backend/app.js`
-- Route หลักอยู่ใต้ prefix `/api`
-- ใช้ middleware สำคัญ:
-  - `requireProxyTrust` ตรวจ `AUTH_PROXY_SECRET`
-  - `attachCurrentUser` อ่าน auth context จาก header
-  - `requireLogin` บังคับ login ก่อนเข้า route ที่ต้องล็อกอิน
-  - RBAC (`requireAdmin`, `requireUserOrAdmin`)
-- backend ส่งผลกลับเป็น JSON payload ที่มี `view` / `redirect` เพื่อให้ frontend ตัดสินใจ render/redirect
-
-### 3) Database
-
-- ใช้ SQLite ไฟล์ `database.sqlite`
-- จัดการด้วย Sequelize models + associations
-- มีการตั้งข้อจำกัดและดัชนีสำคัญตอนเริ่มระบบ
-- มี one-time migration ภายในสำหรับ normalize ISBN
-
-### 🔄 Communication Flow (ASCII)
+### Database
+- SQLite (`database.sqlite`) ผ่าน Sequelize
+- มี schema/data constraint setup ตอนเริ่มระบบ
+- มี one-time migration สำหรับ normalize ISBN
 
 ```text
 Browser
-  │
-  ▼
-Frontend Server (EJS + Session + Flash)
-  │  HTTP Proxy + x-proxy-secret + x-auth-user
-  ▼
-Backend API (/api/*)
-  │
-  ▼
-SQLite (database.sqlite)
+  -> Frontend Server (EJS + Session)
+  -> Backend API (/api/*, proxy-trusted)
+  -> SQLite (database.sqlite)
 ```
 
 ---
 
-## 🧰 Technology Stack
+## 🧰 Tech Stack
 
 | หมวด | เทคโนโลยี |
 |---|---|
 | Runtime | Node.js |
-| Web Framework | Express.js |
+| Framework | Express.js |
 | Template Engine | EJS |
 | ORM | Sequelize |
 | Database | SQLite (`sqlite3`) |
-| Frontend | HTML5, CSS3, JavaScript |
+| Auth & Security | bcrypt, helmet, cors, express-rate-limit |
 | Validation | express-validator |
-| Security | helmet, cors, express-rate-limit |
 | Session & Flash | express-session, connect-flash |
-| Password Hashing | bcrypt |
-| Excel Export | exceljs |
+| Report Export | exceljs |
 | Dev Tools | nodemon, concurrently |
 
 ---
@@ -103,66 +75,27 @@ SQLite (database.sqlite)
 librasync2_net/
 ├─ backend/
 │  ├─ app.js
-│  ├─ config/
-│  │  └─ database.js
-│  ├─ middleware/
-│  │  ├─ auth.js
-│  │  ├─ rbac.js
-│  │  └─ validate.js
-│  ├─ models/
-│  │  ├─ Author.js
-│  │  ├─ Book.js
-│  │  ├─ LoanRecord.js
-│  │  ├─ Member.js
-│  │  ├─ UserAccount.js
-│  │  └─ index.js
-│  └─ routes/
-│     ├─ admin.js
-│     ├─ auth.js
-│     ├─ authors.js
-│     ├─ books.js
-│     ├─ index.js
-│     ├─ loans.js
-│     ├─ members.js
-│     └─ reports.js
+│  ├─ config/database.js
+│  ├─ middleware/{auth,rbac,validate}.js
+│  ├─ models/{Author,Book,Member,LoanRecord,UserAccount,index}.js
+│  └─ routes/{index,auth,authors,books,members,loans,reports,admin}.js
 ├─ frontend/
 │  ├─ app.js
-│  ├─ public/
-│  │  ├─ css/style.css
-│  │  └─ js/darkmode.js
+│  ├─ public/{css/style.css,js/darkmode.js}
 │  └─ views/
-│     ├─ admin/
-│     ├─ auth/
-│     ├─ authors/
-│     ├─ books/
-│     ├─ loans/
-│     ├─ members/
-│     ├─ partials/
-│     ├─ reports/
-│     ├─ dashboard.ejs
-│     └─ error.ejs
 ├─ backups/
 ├─ docs/
-├─ scripts/
-│  └─ kill-port.js
+├─ scripts/kill-port.js
 ├─ database.sqlite
 ├─ package.json
 └─ README.md
 ```
 
-ความหมายโฟลเดอร์หลัก
-
-- `backend/` — API, business logic, validation, RBAC, database access
-- `frontend/` — web UI (EJS), static assets และ proxy layer
-- `scripts/` — utility script สำหรับจัดการพอร์ตระหว่างพัฒนา
-- `backups/` — เก็บไฟล์สำรองฐานข้อมูลตอน reset-data
-- `docs/` — เอกสารเสริมของโปรเจกต์
-
 ---
 
-## ▶️ How to Run the Project
+## ▶️ Run (Local)
 
-### 1) Install dependencies
+### 1) Install
 
 ```bash
 npm install
@@ -170,11 +103,8 @@ npm install
 
 ### 2) Create `.env`
 
-ตัวอย่างค่าที่ใช้ได้กับเครื่อง local
-
 ```env
 NODE_ENV=development
-PORT=3000
 SESSION_SECRET=change-this-session-secret
 
 BACKEND_PORT=3000
@@ -195,30 +125,24 @@ ENABLE_SEED=false
 ADMIN_RESET_CODE=RESET-ALL
 ```
 
-### 3) Start backend server
-
-```bash
-npm run start:backend
-```
-
-### 4) Start frontend server
-
-เปิด terminal อีกอันแล้วรัน
-
-```bash
-npm run start:frontend
-```
-
-### 5) Access the application
-
-```text
-http://localhost:5173
-```
-
-คำสั่งลัดที่ใช้บ่อย
+### 3) Start
 
 ```bash
 npm start
+```
+
+หรือแยก terminal:
+
+```bash
+npm run start:backend
+npm run start:frontend
+```
+
+เข้าใช้งานที่ `http://localhost:5173`
+
+คำสั่งที่ใช้บ่อย:
+
+```bash
 npm run dev
 npm run start:clean
 npm run dev:clean
@@ -226,134 +150,174 @@ npm run dev:clean
 
 ---
 
-## 🗄️ Database Configuration
+## 🗄️ Data Model
 
-- Dialect: `sqlite`
-- Config file: `backend/config/database.js`
-- Database file: `database.sqlite`
-- ตารางหลัก:
-  - `Authors`
-  - `Books`
-  - `Members`
-  - `LoanRecords`
-  - `UserAccounts`
-- ความสัมพันธ์สำคัญ:
-  - `Author` 1:N `Book`
-  - `Book` 1:N `LoanRecord`
-  - `Member` 1:N `LoanRecord`
-  - `Member` 1:1 `UserAccount` (ลบ member แล้วลบ account ตาม)
-- มีการตั้งดัชนีสำคัญ เช่น ISBN unique, email unique, loan indexes
+ตารางหลัก:
+- `Authors`
+- `Books`
+- `Members`
+- `LoanRecords`
+- `UserAccounts`
+
+ความสัมพันธ์:
+- `Author` 1:N `Book`
+- `Book` 1:N `LoanRecord`
+- `Member` 1:N `LoanRecord`
+- `Member` 1:1 `UserAccount` (cascade delete)
+
+ดัชนีสำคัญที่ระบบตรวจ/สร้าง:
+- `idx_books_isbn_unique`
+- `idx_members_email_unique`
+- `idx_loanrecords_book_return`
+- `idx_loanrecords_member_return`
+- `idx_loanrecords_borrow_date`
+- `idx_useraccounts_username_unique`
+- `idx_useraccounts_member_unique`
 
 ---
 
 ## 🔌 API Endpoints
 
-> หมายเหตุ: backend ใช้ prefix `/api` ทุก route
+> ทุก endpoint อยู่ภายใต้ `/api`
 
 ### Auth
 
-| Method | Endpoint | คำอธิบาย |
-|---|---|---|
-| GET | `/api/auth/login` | หน้าเข้าสู่ระบบ |
-| POST | `/api/auth/login` | ตรวจสอบบัญชีและ login |
-| GET | `/api/auth/register` | หน้าสมัครสมาชิก |
-| POST | `/api/auth/register` | สมัครสมาชิกและสร้างบัญชีผู้ใช้ |
-| POST | `/api/auth/logout` | ออกจากระบบ |
+| Method | Endpoint | Access | คำอธิบาย |
+|---|---|---|---|
+| GET | `/api/auth/login` | Public | หน้าเข้าสู่ระบบ |
+| POST | `/api/auth/login` | Public | ตรวจบัญชีและสร้าง auth session |
+| GET | `/api/auth/register` | Public | หน้าสมัครสมาชิก |
+| POST | `/api/auth/register` | Public | สร้าง `Member` + `UserAccount(role=user)` |
+| POST | `/api/auth/logout` | Login | ออกจากระบบ |
 
 ### Dashboard
 
-| Method | Endpoint | คำอธิบาย |
-|---|---|---|
-| GET | `/api/` | โหลดข้อมูล dashboard ตาม role |
+| Method | Endpoint | Access | คำอธิบาย |
+|---|---|---|---|
+| GET | `/api/` | Login | dashboard ตาม role + trend 7/30/90 + quick member lookup |
 
 ### Authors
 
-| Method | Endpoint | คำอธิบาย |
-|---|---|---|
-| GET | `/api/authors` | รายการผู้แต่ง (search/pagination) |
-| GET | `/api/authors/new` | ฟอร์มเพิ่มผู้แต่ง (admin) |
-| GET | `/api/authors/check-duplicate` | ตรวจชื่อผู้แต่งซ้ำ (admin) |
-| POST | `/api/authors` | เพิ่มผู้แต่ง (admin) |
-| GET | `/api/authors/:id/edit` | ฟอร์มแก้ไขผู้แต่ง (admin) |
-| POST | `/api/authors/:id/update` | อัปเดตผู้แต่ง (admin) |
-| POST | `/api/authors/:id/delete` | ลบผู้แต่ง (admin) |
+| Method | Endpoint | Access | คำอธิบาย |
+|---|---|---|---|
+| GET | `/api/authors` | Login | รายการผู้แต่ง + search/pagination |
+| GET | `/api/authors/new` | Admin | ฟอร์มเพิ่มผู้แต่ง |
+| GET | `/api/authors/check-duplicate` | Admin | ตรวจชื่อผู้แต่งซ้ำ |
+| POST | `/api/authors` | Admin | เพิ่มผู้แต่ง |
+| GET | `/api/authors/:id/edit` | Admin | ฟอร์มแก้ไขผู้แต่ง |
+| POST | `/api/authors/:id/update` | Admin | อัปเดตผู้แต่ง |
+| POST | `/api/authors/:id/delete` | Admin | ลบผู้แต่ง |
 
 ### Books
 
-| Method | Endpoint | คำอธิบาย |
-|---|---|---|
-| GET | `/api/books` | รายการหนังสือ (search/filter/pagination) |
-| GET | `/api/books/new` | ฟอร์มเพิ่มหนังสือ (admin) |
-| GET | `/api/books/isbn/generate` | สร้าง ISBN อัตโนมัติ (admin) |
-| GET | `/api/books/check-duplicate` | ตรวจชื่อหนังสือซ้ำ (admin) |
-| POST | `/api/books` | เพิ่มหนังสือ (admin) |
-| GET | `/api/books/:id/edit` | ฟอร์มแก้ไขหนังสือ (admin) |
-| POST | `/api/books/:id/update` | อัปเดตหนังสือ (admin) |
-| POST | `/api/books/:id/delete` | ลบหนังสือ (admin) |
+| Method | Endpoint | Access | คำอธิบาย |
+|---|---|---|---|
+| GET | `/api/books` | Login | รายการหนังสือ + search/filter/pagination |
+| GET | `/api/books/new` | Admin | ฟอร์มเพิ่มหนังสือ |
+| GET | `/api/books/isbn/generate` | Admin | สร้าง ISBN อัตโนมัติ |
+| GET | `/api/books/check-duplicate` | Admin | ตรวจชื่อหนังสือซ้ำ |
+| POST | `/api/books` | Admin | เพิ่มหนังสือ |
+| GET | `/api/books/:id/edit` | Admin | ฟอร์มแก้ไขหนังสือ |
+| POST | `/api/books/:id/update` | Admin | อัปเดตหนังสือ |
+| POST | `/api/books/:id/delete` | Admin | ลบหนังสือ |
 
-### Members (admin)
+### Members
 
-| Method | Endpoint | คำอธิบาย |
-|---|---|---|
-| GET | `/api/members` | รายการสมาชิก |
-| GET | `/api/members/new` | ฟอร์มเพิ่มสมาชิก |
-| GET | `/api/members/check-duplicate` | ตรวจชื่อสมาชิกซ้ำ |
-| POST | `/api/members` | เพิ่มสมาชิก + บัญชีผู้ใช้ |
-| GET | `/api/members/:id/edit` | ฟอร์มแก้ไขสมาชิก |
-| POST | `/api/members/:id/update` | อัปเดตสมาชิก + บัญชีผู้ใช้ |
-| POST | `/api/members/:id/delete` | ลบสมาชิก |
+| Method | Endpoint | Access | คำอธิบาย |
+|---|---|---|---|
+| GET | `/api/members` | Admin | รายการสมาชิก |
+| GET | `/api/members/new` | Admin | ฟอร์มเพิ่มสมาชิก |
+| GET | `/api/members/check-duplicate` | Admin | ตรวจชื่อสมาชิกซ้ำ |
+| POST | `/api/members` | Admin | เพิ่มสมาชิก + บัญชีผู้ใช้ |
+| GET | `/api/members/:id/edit` | Admin | ฟอร์มแก้ไขสมาชิก |
+| POST | `/api/members/:id/update` | Admin | อัปเดตสมาชิก + บัญชีผู้ใช้ |
+| POST | `/api/members/:id/delete` | Admin | ลบสมาชิก |
 
-### Loans (user/admin)
+### Loans
 
-| Method | Endpoint | คำอธิบาย |
-|---|---|---|
-| GET | `/api/loans` | รายการยืม-คืน (user เห็นเฉพาะของตัวเอง) |
-| GET | `/api/loans/new` | ฟอร์มยืมหนังสือ |
-| POST | `/api/loans` | สร้างรายการยืม (user บังคับ member_id เป็นของตัวเอง) |
-| POST | `/api/loans/:id/return` | คืนหนังสือ (user คืนได้เฉพาะรายการของตัวเอง) |
+| Method | Endpoint | Access | คำอธิบาย |
+|---|---|---|---|
+| GET | `/api/loans` | User/Admin | รายการยืม-คืน (user เห็นเฉพาะของตัวเอง) |
+| GET | `/api/loans/new` | User/Admin | ฟอร์มยืมหนังสือ |
+| POST | `/api/loans` | User/Admin | บันทึกยืม (user ถูกบังคับ member_id ของตนเอง) |
+| POST | `/api/loans/:id/return` | User/Admin | คืนหนังสือ (user คืนได้เฉพาะรายการตนเอง) |
 
-### Reports (user/admin)
+### Reports
 
-| Method | Endpoint | คำอธิบาย |
-|---|---|---|
-| GET | `/api/reports` | redirect ไป active-loans |
-| GET | `/api/reports/active-loans` | รายงานการยืมปัจจุบัน |
-| GET | `/api/reports/loan-history` | รายงานประวัติยืม-คืน |
-| GET | `/api/reports/member-borrow-summary` | สรุปการยืมของสมาชิก |
-
-การ export รายงาน
-
-- ใช้ query `?format=csv`
-- ระบบจะส่งไฟล์จริงเป็น Excel `.xlsx`
-- มีการใส่สีแถวตามสถานะ 4 ระดับ (ยืมเกิน 14 วัน, ยืมเกิน 7 วัน, ปกติแอคทีฟ, คืนแล้ว)
-- มี worksheet “คำอธิบายสี” พร้อมหัวตารางและข้อความภาษาไทย
-- ตั้งรูปแบบการอ่านข้อมูล เช่น คอลัมน์ลำดับ, freeze แถวหัวตาราง และ auto filter
+| Method | Endpoint | Access | คำอธิบาย |
+|---|---|---|---|
+| GET | `/api/reports` | User/Admin | redirect ไป `/api/reports/active-loans` |
+| GET | `/api/reports/active-loans` | User/Admin | รายงานยืมปัจจุบัน |
+| GET | `/api/reports/loan-history` | User/Admin | รายงานประวัติยืม-คืน |
+| GET | `/api/reports/member-borrow-summary` | User/Admin | สรุปจำนวนการยืมต่อสมาชิก |
 
 ### Admin
 
-| Method | Endpoint | คำอธิบาย |
-|---|---|---|
-| GET | `/api/admin/health` | ตรวจสุขภาพข้อมูล, ดัชนี, consistency |
-| POST | `/api/admin/reset-data` | สำรองฐานข้อมูลแล้วล้างข้อมูลทั้งหมด |
+| Method | Endpoint | Access | คำอธิบาย |
+|---|---|---|---|
+| GET | `/api/admin/health` | Admin | ตรวจสุขภาพฐานข้อมูลและ index |
+| POST | `/api/admin/reset-data` | Admin | backup แล้วล้างข้อมูลหลักทั้งหมด |
 
 ---
 
-## 🧭 Additional Notes
+## 📊 Reports & Excel Export
 
-- ระบบ frontend ใช้แนวทาง server-side proxy ไม่ใช่ SPA ที่เรียก backend ตรงจาก browser
-- ฝั่ง backend มี fallback 404/500 เป็น JSON
-- มี default admin bootstrap จาก `.env` เมื่อยังไม่มีบัญชี `admin` ในระบบ
+- หน้า report ใช้ query `format=csv` เพื่อ trigger การ export
+- ไฟล์ที่ดาวน์โหลดจริงเป็น `.xlsx` (`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`)
+- รองรับ report 3 แบบ:
+  - Active Loans
+  - Loan History
+  - Member Borrow Summary
+- สีใน Excel 4 ระดับ:
+  - ยืมเกิน 14 วัน
+  - ยืมเกิน 7 วัน
+  - ปกติ (active)
+  - คืนแล้ว
+- มี worksheet `คำอธิบายสี`
+- กำหนด style เพิ่มเติม: เลขลำดับ, header style, border, auto filter, freeze top row, ฟอนต์ `Sukhumvit Set`
 
 ---
 
-## 🔮 Future Improvements
+## 👮 RBAC Behavior
 
-- 🧪 เพิ่ม automated tests (unit/integration) สำหรับ route สำคัญ
-- 🔁 เพิ่ม CI pipeline สำหรับ lint/test ก่อน merge
-- 📘 เพิ่ม API documentation แบบ OpenAPI/Swagger
-- 🔐 เพิ่มฟีเจอร์เปลี่ยนรหัสผ่าน/รีเซ็ตรหัสผ่าน
-- 🧾 เพิ่ม audit log สำหรับกิจกรรมสำคัญ (login, reset-data, role changes)
-- 🐳 เพิ่ม Docker setup สำหรับ deploy หลาย environment
+- `admin`
+  - เห็นข้อมูลรวมระบบ
+  - เข้าถึงเมนู Members และ Admin Health
+  - เห็นการ์ด/ตาราง Dashboard ส่วน admin (Top 10 + quick actions + cards เพิ่มเติม)
+
+- `user`
+  - scope ข้อมูลตาม `member_id` ของตัวเองใน dashboard/loans/reports
+  - ไม่เห็นเมนู Members และ Admin Health
+  - ไม่เห็นส่วน admin-only ใน dashboard
+
+---
+
+## 🧪 Admin Health & Reset
+
+หน้า `GET /api/admin/health` ตรวจ:
+- `PRAGMA integrity_check`
+- index จำเป็น
+- duplicate ISBN / duplicate email
+- mismatch ของสถานะหนังสือและจำนวนคงเหลือ
+- orphan loan records
+
+`POST /api/admin/reset-data`:
+- ต้องส่ง `confirmation_code` ให้ตรง `ADMIN_RESET_CODE`
+- สร้าง backup ไฟล์ในโฟลเดอร์ `backups/`
+- ล้างข้อมูล `LoanRecords`, `Books`, `Members`, `Authors`
+
+> หมายเหตุ: ตาม implementation ปัจจุบัน endpoint นี้ **ไม่ได้ลบ `UserAccounts`** โดยตรง
+
+---
+
+## 🔮 Suggested Next Improvements
+
+- เพิ่ม automated tests (unit/integration)
+- เพิ่ม CI สำหรับ lint/test ก่อน merge
+- เพิ่ม OpenAPI/Swagger docs
+- เพิ่ม change-password / reset-password flow
+- เพิ่ม audit log สำหรับ action สำคัญ
+- เพิ่ม Docker setup
 
 ---
 
