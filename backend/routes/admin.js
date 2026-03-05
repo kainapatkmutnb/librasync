@@ -4,6 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const { QueryTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const { requireAdmin } = require('../middleware/rbac');
+
+router.use(requireAdmin);
 
 const createBackupBeforeReset = () => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');

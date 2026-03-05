@@ -1,6 +1,6 @@
 const { validationResult, body } = require('express-validator');
 const { Op, fn, col, where } = require('sequelize');
-const { Author, Book, Member } = require('../models');
+const { Author, Book, Member, UserAccount } = require('../models');
 
 const normalizeNameForCompare = (value) => String(value || '').trim().toLowerCase();
 
@@ -80,16 +80,70 @@ const memberValidation = [
     .isEmail().withMessage('รูปแบบอีเมลไม่ถูกต้อง'),
   body('phone_number')
     .notEmpty().withMessage('เบอร์โทรศัพท์ไม่สามารถว่างได้')
-    .custom((value) => {
-      const digitLength = String(value || '').replace(/[^0-9]/g, '').length;
-      if (digitLength < 9 || digitLength > 12) {
-        throw new Error('เบอร์โทรศัพท์ต้องเป็นตัวเลข 9-12 หลัก');
-      }
-      return true;
-    }),
-  body('joined_date')
+    .matches(/^\d{3}-\d{3}-\d{4}$/).withMessage('เบอร์โทรศัพท์ต้องอยู่ในรูปแบบ xxx-xxx-xxxx'),
+  body('register_date')
     .notEmpty().withMessage('วันที่สมัครไม่สามารถว่างได้')
     .isDate().withMessage('รูปแบบวันที่ไม่ถูกต้อง')
+];
+
+const accountValidation = [
+  body('username')
+    .trim()
+    .notEmpty().withMessage('ชื่อผู้ใช้ไม่สามารถว่างได้')
+    .isLength({ min: 4, max: 50 }).withMessage('ชื่อผู้ใช้ต้องมีความยาว 4-50 ตัวอักษร')
+    .matches(/^[A-Za-z0-9_.-]+$/).withMessage('ชื่อผู้ใช้ใช้ได้เฉพาะ a-z, A-Z, 0-9, _, ., -')
+    .bail()
+    .custom(async (value, { req }) => {
+      const username = String(value || '').trim();
+      const whereClause = { username };
+
+      if (req.params.id) {
+        const memberId = Number.parseInt(req.params.id, 10);
+        if (Number.isInteger(memberId) && memberId > 0) {
+          const currentAccount = await UserAccount.findOne({ where: { member_id: memberId } });
+          if (currentAccount && currentAccount.username === username) {
+            return true;
+          }
+        }
+      }
+
+      const exists = await UserAccount.findOne({ where: whereClause });
+      if (exists) {
+        throw new Error('ชื่อผู้ใช้นี้มีอยู่ในระบบแล้ว');
+      }
+
+      return true;
+    })
+];
+
+const passwordValidation = [
+  body('password')
+    .notEmpty().withMessage('รหัสผ่านไม่สามารถว่างได้')
+    .isLength({ min: 4 }).withMessage('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร')
+];
+
+const registerValidation = [
+  ...memberValidation,
+  ...accountValidation,
+  ...passwordValidation
+];
+
+const memberCreateValidation = registerValidation;
+
+const memberUpdateValidation = [
+  ...memberValidation,
+  ...accountValidation,
+  body('password')
+    .optional({ values: 'falsy' })
+    .isLength({ min: 4 }).withMessage('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร')
+];
+
+const loginValidation = [
+  body('username')
+    .trim()
+    .notEmpty().withMessage('กรุณากรอกชื่อผู้ใช้'),
+  body('password')
+    .notEmpty().withMessage('กรุณากรอกรหัสผ่าน')
 ];
 
 const authorValidation = [
@@ -119,6 +173,10 @@ module.exports = {
   validate, 
   bookValidation, 
   memberValidation, 
+  memberCreateValidation,
+  memberUpdateValidation,
+  registerValidation,
+  loginValidation,
   authorValidation, 
   loanValidation 
 };

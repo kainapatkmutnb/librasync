@@ -1,28 +1,12 @@
 const express = require('express');
-const router = express.Router();
+const ExcelJS = require('exceljs');
 const { QueryTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const { requireUserOrAdmin } = require('../middleware/rbac');
 
-const toCsv = (rows, headers) => {
-  const escapeCell = (value) => {
-    if (value === null || value === undefined) return '';
-    const text = String(value).replace(/"/g, '""');
-    return /[",\n]/.test(text) ? `"${text}"` : text;
-  };
+const router = express.Router();
 
-  const lines = [headers.join(',')];
-  rows.forEach((row) => {
-    lines.push(headers.map((header) => escapeCell(row[header])).join(','));
-  });
-
-  return lines.join('\n');
-};
-
-const sendCsv = (res, filename, rows, headers) => {
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(`\uFEFF${toCsv(rows, headers)}`);
-};
+router.use(requireUserOrAdmin);
 
 const normalizeDate = (value) => {
   if (!value) return '';
@@ -34,25 +18,101 @@ const parseMemberId = (value) => {
   return Number.isInteger(memberId) && memberId > 0 ? memberId : '';
 };
 
-async function getMemberOptions() {
+const getScopedMemberId = (req, queryMemberId) => {
+  if (req.user?.role === 'admin') {
+    return queryMemberId;
+  }
+
+  return req.user?.member_id || '';
+};
+
+const colorMap = {
+  overdue: 'FFFFC7CE',
+  dueSoon: 'FFFFF2CC',
+  returned: 'FFBDD7EE'
+};
+
+const setRowColor = (row, status) => {
+  const color = colorMap[status];
+  if (!color) {
+    return;
+  }
+
+  row.eachCell((cell) => {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: color }
+    };
+  });
+};
+
+const addLegendWorksheet = (workbook) => {
+  const legend = workbook.addWorksheet('คำอธิบายสี');
+  legend.columns = [
+    { header: 'สถานะ', key: 'status', width: 24 },
+    { header: 'ความหมาย', key: 'meaning', width: 60 }
+  ];
+
+  const overdueRow = legend.addRow({ status: 'สีแดง', meaning: 'Overdue: ค้างเกินกำหนด' });
+  setRowColor(overdueRow, 'overdue');
+
+  const dueSoonRow = legend.addRow({ status: 'สีเหลือง', meaning: 'Due soon/กำลังยืม: ใกล้ครบกำหนดหรือยังไม่คืน' });
+  setRowColor(dueSoonRow, 'dueSoon');
+
+  const returnedRow = legend.addRow({ status: 'สีน้ำเงิน', meaning: 'Returned: คืนเรียบร้อยแล้ว' });
+  setRowColor(returnedRow, 'returned');
+};
+
+const sendExcel = async (res, filename, sheetName, headers, rows, statusResolver) => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet(sheetName);
+
+  sheet.columns = headers.map((header) => ({
+    header: header.label,
+    key: header.key,
+    width: header.width || 20
+  }));
+
+  const headerRow = sheet.getRow(1);
+  headerRow.font = { bold: true };
+
+  rows.forEach((item) => {
+    const row = sheet.addRow(item);
+    const status = statusResolver ? statusResolver(item) : null;
+    setRowColor(row, status);
+  });
+
+  addLegendWorksheet(workbook);
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+  await workbook.xlsx.write(res);
+  res.end();
+};
+
+async function getMemberOptions(scopedMemberId) {
+  const whereSql = scopedMemberId ? 'WHERE id = :memberId' : '';
   return sequelize.query(
-    `SELECT id, full_name FROM Members ORDER BY full_name ASC`,
-    { type: QueryTypes.SELECT }
+    `SELECT id, full_name FROM Members ${whereSql} ORDER BY full_name ASC`,
+    {
+      type: QueryTypes.SELECT,
+      replacements: scopedMemberId ? { memberId: scopedMemberId } : {}
+    }
   );
 }
 
-// Reports home
 router.get('/', (req, res) => {
   res.redirect('/reports/active-loans');
 });
 
-// Active Loans Report
 router.get('/active-loans', async (req, res) => {
   try {
+    const scopedMemberId = getScopedMemberId(req, parseMemberId(req.query.member_id));
     const filters = {
       from: normalizeDate(req.query.from),
       to: normalizeDate(req.query.to),
-      member_id: parseMemberId(req.query.member_id)
+      member_id: scopedMemberId
     };
 
     const replacements = {};
@@ -76,11 +136,11 @@ router.get('/active-loans', async (req, res) => {
     const whereSql = whereConditions.join(' AND ');
 
     const activeLoans = await sequelize.query(`
-      SELECT 
-        lr.id, 
-        b.title, 
-        a.full_name as author, 
-        m.full_name as member, 
+      SELECT
+        lr.id,
+        b.title,
+        a.full_name as author,
+        m.full_name as member,
         lr.borrow_date,
         CAST((julianday('now') - julianday(lr.borrow_date)) AS INTEGER) as days_borrowed
       FROM LoanRecords lr
@@ -95,15 +155,25 @@ router.get('/active-loans', async (req, res) => {
     });
 
     if (req.query.format === 'csv') {
-      return sendCsv(
+      await sendExcel(
         res,
-        'active-loans.csv',
+        'active-loans',
+        'Active Loans',
+        [
+          { key: 'id', label: 'ID', width: 10 },
+          { key: 'title', label: 'ชื่อหนังสือ', width: 32 },
+          { key: 'author', label: 'ผู้แต่ง', width: 24 },
+          { key: 'member', label: 'สมาชิก', width: 24 },
+          { key: 'borrow_date', label: 'วันที่ยืม', width: 16 },
+          { key: 'days_borrowed', label: 'จำนวนวัน', width: 14 }
+        ],
         activeLoans,
-        ['id', 'title', 'author', 'member', 'borrow_date', 'days_borrowed']
+        (row) => (Number(row.days_borrowed) > 7 ? 'overdue' : 'dueSoon')
       );
+      return;
     }
 
-    const members = await getMemberOptions();
+    const members = await getMemberOptions(filters.member_id);
 
     res.render('reports/active-loans', {
       title: 'รายงานการยืมปัจจุบัน - LibraSync',
@@ -125,15 +195,15 @@ router.get('/active-loans', async (req, res) => {
   }
 });
 
-// Full Loan History Report
 router.get('/loan-history', async (req, res) => {
   try {
+    const scopedMemberId = getScopedMemberId(req, parseMemberId(req.query.member_id));
     const filters = {
       from: normalizeDate(req.query.from),
       to: normalizeDate(req.query.to),
       returned_from: normalizeDate(req.query.returned_from),
       returned_to: normalizeDate(req.query.returned_to),
-      member_id: parseMemberId(req.query.member_id),
+      member_id: scopedMemberId,
       status: ['all', 'active', 'returned'].includes(req.query.status) ? req.query.status : 'all'
     };
 
@@ -209,15 +279,30 @@ router.get('/loan-history', async (req, res) => {
     });
 
     if (req.query.format === 'csv') {
-      return sendCsv(
+      await sendExcel(
         res,
-        'loan-history.csv',
+        'loan-history',
+        'Loan History',
+        [
+          { key: 'id', label: 'ID', width: 10 },
+          { key: 'title', label: 'ชื่อหนังสือ', width: 32 },
+          { key: 'author', label: 'ผู้แต่ง', width: 24 },
+          { key: 'member', label: 'สมาชิก', width: 24 },
+          { key: 'borrow_date', label: 'วันที่ยืม', width: 16 },
+          { key: 'return_date', label: 'วันที่คืน', width: 16 },
+          { key: 'days_kept', label: 'จำนวนวัน', width: 14 }
+        ],
         loanHistory,
-        ['id', 'title', 'author', 'member', 'borrow_date', 'return_date', 'days_kept']
+        (row) => {
+          if (row.return_date) return 'returned';
+          if (Number(row.days_kept) > 7) return 'overdue';
+          return 'dueSoon';
+        }
       );
+      return;
     }
 
-    const members = await getMemberOptions();
+    const members = await getMemberOptions(filters.member_id);
 
     res.render('reports/loan-history', {
       title: 'รายงานประวัติยืม-คืนทั้งหมด - LibraSync',
@@ -239,15 +324,15 @@ router.get('/loan-history', async (req, res) => {
   }
 });
 
-// Member Borrow Count Report
 router.get('/member-borrow-summary', async (req, res) => {
   try {
+    const scopedMemberId = getScopedMemberId(req, parseMemberId(req.query.detail_member_id || req.query.member_id));
     const filters = {
       from: normalizeDate(req.query.from),
       to: normalizeDate(req.query.to),
       keyword: (req.query.keyword || '').trim(),
       min_borrows: Number.parseInt(req.query.min_borrows, 10) || 0,
-      detail_member_id: parseMemberId(req.query.detail_member_id)
+      detail_member_id: scopedMemberId
     };
 
     const replacements = { min_borrows: Math.max(0, filters.min_borrows) };
@@ -264,9 +349,14 @@ router.get('/member-borrow-summary', async (req, res) => {
       replacements.to = filters.to;
     }
 
-    if (filters.keyword) {
+    if (filters.keyword && req.user?.role === 'admin') {
       whereConditions.push('(m.full_name LIKE :keyword OR m.email LIKE :keyword)');
       replacements.keyword = `%${filters.keyword}%`;
+    }
+
+    if (filters.detail_member_id) {
+      whereConditions.push('m.id = :detail_member_id');
+      replacements.detail_member_id = filters.detail_member_id;
     }
 
     const joinSql = joinConditions.length > 0 ? ` AND ${joinConditions.join(' AND ')}` : '';
@@ -342,15 +432,25 @@ router.get('/member-borrow-summary', async (req, res) => {
     }
 
     if (req.query.format === 'csv') {
-      return sendCsv(
+      await sendExcel(
         res,
-        'member-borrow-summary.csv',
+        'member-borrow-summary',
+        'Member Borrow Summary',
+        [
+          { key: 'id', label: 'ID', width: 10 },
+          { key: 'full_name', label: 'ชื่อสมาชิก', width: 24 },
+          { key: 'email', label: 'อีเมล', width: 28 },
+          { key: 'total_borrows', label: 'ยืมทั้งหมด', width: 14 },
+          { key: 'active_borrows', label: 'กำลังยืม', width: 14 },
+          { key: 'last_borrow_date', label: 'ยืมล่าสุด', width: 16 }
+        ],
         memberBorrowSummary,
-        ['id', 'full_name', 'email', 'total_borrows', 'active_borrows', 'last_borrow_date']
+        (row) => (Number(row.active_borrows) > 0 ? 'dueSoon' : 'returned')
       );
+      return;
     }
 
-    const members = await getMemberOptions();
+    const members = await getMemberOptions(filters.detail_member_id);
 
     res.render('reports/member-borrow-summary', {
       title: 'รายงานสมาชิกยืมกี่ครั้ง - LibraSync',

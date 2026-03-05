@@ -38,19 +38,25 @@
       
       <div class="form-group">
         <label for="member_id">สมาชิก <span class="required">*</span></label>
-        <select 
-          id="member_id" 
-          name="member_id"
-          class="<%= errors && errors.find(e => e.path === 'member_id') ? 'error' : '' %>"
-          required
-        >
-          <option value="">-- เลือกสมาชิก --</option>
-          <% members.forEach(member => { %>
-            <option value="<%= member.id %>" <%= formData.member_id == member.id ? 'selected' : '' %>>
-              <%= member.full_name %> (<%= member.email %>)
-            </option>
-          <% }) %>
-        </select>
+        <% if (loanRole === 'admin') { %>
+          <select 
+            id="member_id" 
+            name="member_id"
+            class="<%= errors && errors.find(e => e.path === 'member_id') ? 'error' : '' %>"
+            required
+          >
+            <option value="">-- เลือกสมาชิก --</option>
+            <% members.forEach(member => { %>
+              <option value="<%= member.id %>" <%= formData.member_id == member.id ? 'selected' : '' %>>
+                <%= member.full_name %> (<%= member.email %>)
+              </option>
+            <% }) %>
+          </select>
+        <% } else { %>
+          <% const selfMember = members && members.length > 0 ? members[0] : null; %>
+          <input type="hidden" name="member_id" value="<%= currentMemberId || (selfMember ? selfMember.id : '') %>">
+          <input type="text" value="<%= selfMember ? selfMember.full_name + ' (' + selfMember.email + ')' : 'ไม่พบข้อมูลสมาชิก' %>" readonly>
+        <% } %>
         <% const memberError = errors && errors.find(e => e.path === 'member_id'); %>
         <% if (memberError) { %>
           <span class="error-message"><%= memberError.msg %></span>

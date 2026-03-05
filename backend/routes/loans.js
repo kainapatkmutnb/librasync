@@ -3,6 +3,20 @@ const router = express.Router();
 const { Book, Member, LoanRecord, Author, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { validate, loanValidation } = require('../middleware/validate');
+const { requireUserOrAdmin } = require('../middleware/rbac');
+
+router.use(requireUserOrAdmin);
+
+const isAdmin = (req) => req.user && req.user.role === 'admin';
+
+const getScopedMemberId = (req) => {
+  if (isAdmin(req)) {
+    const memberId = Number.parseInt(req.body.member_id || req.query.member_id, 10);
+    return Number.isInteger(memberId) ? memberId : null;
+  }
+
+  return req.user ? req.user.member_id : null;
+};
 
 // List all loan records with pagination
 router.get('/', async (req, res) => {
@@ -12,6 +26,7 @@ router.get('/', async (req, res) => {
     const offset = (page - 1) * limit;
 
     const { count, rows: loans } = await LoanRecord.findAndCountAll({
+      where: isAdmin(req) ? undefined : { member_id: req.user.member_id },
       include: [
         { model: Book, attributes: ['title'], include: [{ model: Author, attributes: ['full_name'] }] },
         { model: Member, attributes: ['full_name'] }
@@ -65,14 +80,20 @@ router.get('/new', async (req, res) => {
       })
       .filter((book) => book.available_copies > 0);
 
-    const members = await Member.findAll({ order: [['full_name', 'ASC']] });
+    const members = isAdmin(req)
+      ? await Member.findAll({ order: [['full_name', 'ASC']] })
+      : await Member.findAll({ where: { id: req.user.member_id }, order: [['full_name', 'ASC']] });
+
+    const currentMemberId = req.user ? req.user.member_id : null;
     
     res.render('loans/form', {
       title: 'ยืมหนังสือ - LibraSync',
       availableBooks,
       members,
       formData: req.flash('formData')[0] || {},
-      errors: req.flash('errors') || []
+      errors: req.flash('errors') || [],
+      loanRole: req.user?.role || 'user',
+      currentMemberId
     });
   } catch (error) {
     console.error(error);
@@ -82,13 +103,21 @@ router.get('/new', async (req, res) => {
 });
 
 // Create loan
-router.post('/', validate(loanValidation), async (req, res) => {
+router.post('/', (req, res, next) => {
+  if (!isAdmin(req) && req.user?.member_id) {
+    req.body.member_id = req.user.member_id;
+  }
+
+  next();
+}, validate(loanValidation), async (req, res) => {
   const transaction = await sequelize.transaction();
 
   try {
+    const scopedMemberId = getScopedMemberId(req);
+
     const [book, member] = await Promise.all([
       Book.findByPk(req.body.book_id, { transaction }),
-      Member.findByPk(req.body.member_id, { transaction })
+      Member.findByPk(scopedMemberId, { transaction })
     ]);
 
     if (!book) {
@@ -113,7 +142,7 @@ router.post('/', validate(loanValidation), async (req, res) => {
 
     await LoanRecord.create({
       book_id: req.body.book_id,
-      member_id: req.body.member_id,
+      member_id: scopedMemberId,
       borrow_date: req.body.borrow_date,
       return_date: null
     }, { transaction });
@@ -153,6 +182,12 @@ router.post('/:id/return', async (req, res) => {
     if (!loan) {
       await transaction.rollback();
       req.flash('error', 'ไม่พบรายการยืม');
+      return res.redirect('/loans');
+    }
+
+    if (!isAdmin(req) && Number(loan.member_id) !== Number(req.user.member_id)) {
+      await transaction.rollback();
+      req.flash('error', 'คุณไม่มีสิทธิ์คืนหนังสือรายการของสมาชิกคนอื่น');
       return res.redirect('/loans');
     }
     

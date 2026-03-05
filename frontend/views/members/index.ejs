@@ -2,7 +2,9 @@
 
 <div class="page-header">
   <h1>รายการสมาชิก</h1>
-  <a href="/members/new" class="btn btn-primary no-print">➕ เพิ่มสมาชิก</a>
+  <% if (currentUser && currentUser.role === 'admin') { %>
+    <a href="/members/new" class="btn btn-primary no-print">➕ เพิ่มสมาชิก</a>
+  <% } %>
 </div>
 
 <!-- Search and Pagination Controls -->
@@ -49,7 +51,9 @@
         <th>อีเมล</th>
         <th>เบอร์โทรศัพท์</th>
         <th>วันที่สมัคร</th>
-        <th class="no-print actions-column">จัดการ</th>
+        <% if (currentUser && currentUser.role === 'admin') { %>
+          <th class="no-print actions-column">จัดการ</th>
+        <% } %>
       </tr>
     </thead>
     <tbody>
@@ -60,12 +64,14 @@
           <td><%= member.email %></td>
           <td><%= member.phone_number %></td>
           <td><%= new Date(member.joined_date).toLocaleDateString('th-TH') %></td>
-          <td class="no-print actions-column">
-            <a href="/members/<%= member.id %>/edit" class="btn btn-sm btn-warning">แก้ไข</a>
-            <form action="/members/<%= member.id %>/delete" method="POST" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบสมาชิกนี้?')">
-              <button type="submit" class="btn btn-sm btn-danger">ลบ</button>
-            </form>
-          </td>
+          <% if (currentUser && currentUser.role === 'admin') { %>
+            <td class="no-print actions-column">
+              <a href="/members/<%= member.id %>/edit" class="btn btn-sm btn-warning">แก้ไข</a>
+              <form action="/members/<%= member.id %>/delete" method="POST" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบสมาชิกนี้?')">
+                <button type="submit" class="btn btn-sm btn-danger">ลบ</button>
+              </form>
+            </td>
+          <% } %>
         </tr>
       <% }) %>
     </tbody>

@@ -17,17 +17,22 @@ const parseTrendDays = (value) => {
 // Dashboard
 router.get('/', async (req, res) => {
   try {
-    const selectedMemberId = parseMemberId(req.query.member_id);
+    const isUserRole = req.user?.role === 'user';
+    const selectedMemberId = isUserRole
+      ? req.user.member_id
+      : parseMemberId(req.query.member_id);
     const trendDays = parseTrendDays(req.query.trend_days);
     const today = new Date().toISOString().split('T')[0];
+    const loanScope = isUserRole ? { member_id: req.user.member_id } : {};
 
     // Stats
     const totalBooks = Number(await Book.sum('total_copies')) || 0;
     const borrowedBooks = Number(await Book.sum('borrowed_copies')) || 0;
     const availableBooks = Math.max(0, totalBooks - borrowedBooks);
-    const totalMembers = await Member.count();
+    const totalMembers = isUserRole ? 1 : await Member.count();
     const activeLoans = await LoanRecord.count({
       where: {
+        ...loanScope,
         [Op.or]: [
           { return_date: null },
           { return_date: { [Op.gt]: today } }
@@ -36,8 +41,8 @@ router.get('/', async (req, res) => {
     });
 
     const [borrowedToday, returnedToday] = await Promise.all([
-      LoanRecord.count({ where: { borrow_date: today } }),
-      LoanRecord.count({ where: { return_date: today } })
+      LoanRecord.count({ where: { ...loanScope, borrow_date: today } }),
+      LoanRecord.count({ where: { ...loanScope, return_date: today } })
     ]);
     
     // Overdue loans (more than 7 days)
@@ -46,6 +51,7 @@ router.get('/', async (req, res) => {
     const overdueToDate = sevenDaysAgo.toISOString().split('T')[0];
     const overdueLoans = await LoanRecord.count({
       where: {
+        ...loanScope,
         [Op.or]: [
           { return_date: null },
           { return_date: { [Op.gt]: today } }
@@ -63,7 +69,7 @@ router.get('/', async (req, res) => {
           { [Op.lte]: 1 }
         )
       }),
-      sequelize.query(
+      isUserRole ? Promise.resolve(0) : sequelize.query(
         `
           SELECT COUNT(*) as total
           FROM (
@@ -80,6 +86,7 @@ router.get('/', async (req, res) => {
 
     // Recent activities (last 10 loan records)
     const recentActivities = await LoanRecord.findAll({
+      where: isUserRole ? { member_id: req.user.member_id } : undefined,
       include: [
         { model: Book, attributes: ['title'] },
         { model: Member, attributes: ['full_name'] }
@@ -99,12 +106,15 @@ router.get('/', async (req, res) => {
         )
         SELECT
           day,
-          COALESCE((SELECT COUNT(*) FROM LoanRecords WHERE date(borrow_date) = day), 0) AS borrow_count,
-          COALESCE((SELECT COUNT(*) FROM LoanRecords WHERE return_date IS NOT NULL AND date(return_date) = day), 0) AS return_count
+          COALESCE((SELECT COUNT(*) FROM LoanRecords WHERE date(borrow_date) = day ${isUserRole ? 'AND member_id = :memberId' : ''}), 0) AS borrow_count,
+          COALESCE((SELECT COUNT(*) FROM LoanRecords WHERE return_date IS NOT NULL AND date(return_date) = day ${isUserRole ? 'AND member_id = :memberId' : ''}), 0) AS return_count
         FROM dates
         ORDER BY day ASC
       `,
-      { type: QueryTypes.SELECT }
+      {
+        type: QueryTypes.SELECT,
+        replacements: isUserRole ? { memberId: req.user.member_id } : {}
+      }
     );
 
     const [trend7, trendSelected] = await Promise.all([
@@ -123,11 +133,15 @@ router.get('/', async (req, res) => {
         FROM LoanRecords lr
         JOIN Books b ON lr.book_id = b.id
         JOIN Authors a ON b.author_id = a.id
+        ${isUserRole ? 'WHERE lr.member_id = :memberId' : ''}
         GROUP BY b.id, b.title, a.full_name
         ORDER BY total_borrows DESC, b.title ASC
         LIMIT 10
       `,
-      { type: QueryTypes.SELECT }
+      {
+        type: QueryTypes.SELECT,
+        replacements: isUserRole ? { memberId: req.user.member_id } : {}
+      }
     );
 
     const topMembers = await sequelize.query(
@@ -141,15 +155,20 @@ router.get('/', async (req, res) => {
           MAX(lr.borrow_date) AS last_borrow_date
         FROM Members m
         LEFT JOIN LoanRecords lr ON m.id = lr.member_id
+        ${isUserRole ? 'WHERE m.id = :memberId' : ''}
         GROUP BY m.id, m.full_name, m.email
         HAVING COUNT(lr.id) > 0
         ORDER BY total_borrows DESC, m.full_name ASC
         LIMIT 10
       `,
-      { type: QueryTypes.SELECT }
+      {
+        type: QueryTypes.SELECT,
+        replacements: isUserRole ? { memberId: req.user.member_id } : {}
+      }
     );
 
     const memberOptions = await Member.findAll({
+      where: isUserRole ? { id: req.user.member_id } : undefined,
       attributes: ['id', 'full_name', 'email'],
       order: [['full_name', 'ASC']]
     });

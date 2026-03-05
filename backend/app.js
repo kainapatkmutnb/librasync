@@ -3,8 +3,10 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { QueryTypes } = require('sequelize');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
+const authRoutes = require('./routes/auth');
 const indexRoutes = require('./routes/index');
 const authorRoutes = require('./routes/authors');
 const bookRoutes = require('./routes/books');
@@ -13,7 +15,8 @@ const loanRoutes = require('./routes/loans');
 const reportRoutes = require('./routes/reports');
 const adminRoutes = require('./routes/admin');
 
-const { sequelize } = require('./models');
+const { sequelize, Member, UserAccount } = require('./models');
+const { attachCurrentUser, requireLogin, requireProxyTrust } = require('./middleware/auth');
 
 const app = express();
 const PORT = Number(process.env.BACKEND_PORT || 3000);
@@ -37,6 +40,8 @@ app.use(rateLimit({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/api', requireProxyTrust);
+app.use('/api', attachCurrentUser);
 
 app.use((req, res, next) => {
   req._apiFlashes = { success: [], error: [] };
@@ -67,10 +72,16 @@ app.use((req, res, next) => {
       return undefined;
     }
 
+    const mergedData = {
+      ...data,
+      currentUser: req.user || null
+    };
+
     return res.json({
       view,
-      data,
-      flashes: req._apiFlashes
+      data: mergedData,
+      flashes: req._apiFlashes,
+      authSession: req._authSession || null
     });
   };
 
@@ -81,7 +92,8 @@ app.use((req, res, next) => {
 
     return res.json({
       redirect: location,
-      flashes: req._apiFlashes
+      flashes: req._apiFlashes,
+      authSession: req._authSession || null
     });
   };
 
@@ -91,13 +103,14 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/api', indexRoutes);
-app.use('/api/authors', authorRoutes);
-app.use('/api/books', bookRoutes);
-app.use('/api/members', memberRoutes);
-app.use('/api/loans', loanRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api', requireLogin, indexRoutes);
+app.use('/api/authors', requireLogin, authorRoutes);
+app.use('/api/books', requireLogin, bookRoutes);
+app.use('/api/members', requireLogin, memberRoutes);
+app.use('/api/loans', requireLogin, loanRoutes);
+app.use('/api/reports', requireLogin, reportRoutes);
+app.use('/api/admin', requireLogin, adminRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Not found' });
@@ -112,6 +125,7 @@ async function startServer() {
   try {
     await sequelize.sync();
     await ensureDataConstraints();
+    await ensureDefaultAdminAccount();
     console.log('Backend database synchronized successfully');
 
     if (enableSeedOnStart) {
@@ -199,7 +213,74 @@ async function ensureDataConstraints() {
     }
   }
 
+  try {
+    await sequelize.query('ALTER TABLE UserAccounts ADD COLUMN role TEXT NOT NULL DEFAULT "user";');
+  } catch (error) {
+    if (!/duplicate column name/i.test(error.message)) {
+      console.warn('UserAccounts schema warning:', error.message);
+    }
+  }
+
+  const userStatements = [
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_useraccounts_username_unique ON UserAccounts(username);',
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_useraccounts_member_unique ON UserAccounts(member_id);'
+  ];
+
+  for (const statement of userStatements) {
+    try {
+      await sequelize.query(statement);
+    } catch (error) {
+      console.warn('UserAccounts constraint warning:', error.message);
+    }
+  }
+
   await runOneTimeIsbnNormalizationMigration();
+}
+
+async function ensureDefaultAdminAccount() {
+  const adminUsername = String(process.env.ADMIN_USERNAME || '').trim();
+  const adminPassword = String(process.env.ADMIN_PASSWORD || '').trim();
+  const adminEmail = String(process.env.ADMIN_EMAIL || 'admin@librasync.local').trim();
+  const adminFullName = String(process.env.ADMIN_FULL_NAME || 'System Admin').trim();
+  const adminPhone = String(process.env.ADMIN_PHONE || '000-000-0000').trim();
+
+  if (!adminUsername || !adminPassword) {
+    console.warn('Admin bootstrap skipped: ADMIN_USERNAME/ADMIN_PASSWORD not set');
+    return;
+  }
+
+  const existingAdmin = await UserAccount.findOne({ where: { role: 'admin' } });
+  if (existingAdmin) {
+    return;
+  }
+
+  const transaction = await sequelize.transaction();
+
+  try {
+    const member = await Member.create({
+      full_name: adminFullName,
+      email: adminEmail,
+      phone_number: adminPhone,
+      joined_date: new Date().toISOString().split('T')[0]
+    }, { transaction });
+
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
+
+    await UserAccount.create({
+      member_id: member.id,
+      username: adminUsername,
+      password_hash: passwordHash,
+      role: 'admin'
+    }, { transaction });
+
+    await transaction.commit();
+    console.log(`Default admin created: ${adminUsername}`);
+  } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
+    console.warn('Admin bootstrap warning:', error.message);
+  }
 }
 
 function formatIsbnByDigits(digitsOnly) {

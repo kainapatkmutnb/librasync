@@ -3,6 +3,7 @@ const router = express.Router();
 const { Author, Book } = require('../models');
 const { Op, fn, col, where } = require('sequelize');
 const { validate, authorValidation } = require('../middleware/validate');
+const { requireAdmin } = require('../middleware/rbac');
 
 // List authors with search and pagination
 router.get('/', async (req, res) => {
@@ -53,7 +54,7 @@ router.get('/', async (req, res) => {
 });
 
 // New author form
-router.get('/new', (req, res) => {
+router.get('/new', requireAdmin, (req, res) => {
   res.render('authors/form', {
     title: 'เพิ่มผู้แต่ง - LibraSync',
     author: null,
@@ -63,7 +64,7 @@ router.get('/new', (req, res) => {
 });
 
 // Realtime duplicate check for author name
-router.get('/check-duplicate', async (req, res) => {
+router.get('/check-duplicate', requireAdmin, async (req, res) => {
   try {
     const value = String(req.query.value || '').trim().toLowerCase();
     const excludeId = Number.parseInt(req.query.excludeId, 10);
@@ -91,7 +92,7 @@ router.get('/check-duplicate', async (req, res) => {
 });
 
 // Create author
-router.post('/', validate(authorValidation), async (req, res) => {
+router.post('/', requireAdmin, validate(authorValidation), async (req, res) => {
   try {
     await Author.create({
       full_name: req.body.full_name,
@@ -107,7 +108,7 @@ router.post('/', validate(authorValidation), async (req, res) => {
 });
 
 // Edit author form
-router.get('/:id/edit', async (req, res) => {
+router.get('/:id/edit', requireAdmin, async (req, res) => {
   try {
     const author = await Author.findByPk(req.params.id);
     if (!author) {
@@ -128,7 +129,7 @@ router.get('/:id/edit', async (req, res) => {
 });
 
 // Update author
-router.post('/:id/update', validate(authorValidation), async (req, res) => {
+router.post('/:id/update', requireAdmin, validate(authorValidation), async (req, res) => {
   try {
     const author = await Author.findByPk(req.params.id);
     if (!author) {
@@ -149,7 +150,7 @@ router.post('/:id/update', validate(authorValidation), async (req, res) => {
 });
 
 // Delete author
-router.post('/:id/delete', async (req, res) => {
+router.post('/:id/delete', requireAdmin, async (req, res) => {
   try {
     const author = await Author.findByPk(req.params.id);
     if (!author) {

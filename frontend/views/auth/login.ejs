@@ -1,0 +1,45 @@
+<%- include('../partials/header') %>
+
+<div class="form-container">
+  <h1>เข้าสู่ระบบ</h1>
+
+  <% if (errors && errors.length > 0) { %>
+    <div class="alert alert-error">
+      <ul>
+        <% errors.forEach(error => { %>
+          <li><%= error.msg %></li>
+        <% }) %>
+      </ul>
+    </div>
+  <% } %>
+
+  <form method="POST" action="/auth/login">
+    <div class="form-group">
+      <label for="username">ชื่อผู้ใช้ <span class="required">*</span></label>
+      <input
+        type="text"
+        id="username"
+        name="username"
+        value="<%= formData.username || '' %>"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="password">รหัสผ่าน <span class="required">*</span></label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        required
+      >
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">🔐 เข้าสู่ระบบ</button>
+      <a href="/auth/register" class="btn btn-light">สมัครสมาชิก</a>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

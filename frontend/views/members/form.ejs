@@ -1,7 +1,9 @@
 <%- include('../partials/header') %>
 
 <div class="form-container">
-  <h1><%= member ? 'แก้ไขสมาชิก' : 'เพิ่มสมาชิก' %></h1>
+  <% const isRegisterMode = formMode === 'register'; %>
+  <% const isEditMode = !!member; %>
+  <h1><%= isRegisterMode ? 'สมัครสมาชิก' : (isEditMode ? 'แก้ไขสมาชิก' : 'เพิ่มสมาชิก') %></h1>
   
   <% if (errors && errors.length > 0) { %>
     <div class="alert alert-error">
@@ -13,7 +15,7 @@
     </div>
   <% } %>
   
-  <form method="POST" action="<%= member ? '/members/' + member.id + '/update' : '/members' %>">
+  <form method="POST" action="<%= submitAction || (member ? '/members/' + member.id + '/update' : '/members') %>">
     <div class="form-group">
       <label for="full_name">ชื่อ-นามสกุล <span class="required">*</span></label>
       <input 
@@ -65,18 +67,53 @@
         <span class="error-message"><%= phoneError.msg %></span>
       <% } %>
     </div>
-    
+
     <div class="form-group">
-      <label for="joined_date">วันที่สมัคร <span class="required">*</span></label>
-      <input 
-        type="date" 
-        id="joined_date" 
-        name="joined_date" 
-        value="<%= formData.joined_date || (member ? member.joined_date : new Date().toISOString().split('T')[0]) %>"
-        class="<%= errors && errors.find(e => e.path === 'joined_date') ? 'error' : '' %>"
+      <label for="username">ชื่อผู้ใช้ <span class="required">*</span></label>
+      <input
+        type="text"
+        id="username"
+        name="username"
+        value="<%= formData.username || (account ? account.username : '') %>"
+        class="<%= errors && errors.find(e => e.path === 'username') ? 'error' : '' %>"
         required
       >
-      <% const dateError = errors && errors.find(e => e.path === 'joined_date'); %>
+      <% const usernameError = errors && errors.find(e => e.path === 'username'); %>
+      <% if (usernameError) { %>
+        <span class="error-message"><%= usernameError.msg %></span>
+      <% } %>
+    </div>
+
+    <div class="form-group">
+      <label for="password">รหัสผ่าน <span class="required"><%= isEditMode && !isRegisterMode ? '' : '*' %></span></label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        class="<%= errors && errors.find(e => e.path === 'password') ? 'error' : '' %>"
+        placeholder="อย่างน้อย 4 ตัวอักษร"
+        <%= isEditMode && !isRegisterMode ? '' : 'required' %>
+      >
+      <% if (isEditMode && !isRegisterMode) { %>
+        <span class="form-help">เว้นว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่าน</span>
+      <% } %>
+      <% const passwordError = errors && errors.find(e => e.path === 'password'); %>
+      <% if (passwordError) { %>
+        <span class="error-message"><%= passwordError.msg %></span>
+      <% } %>
+    </div>
+    
+    <div class="form-group">
+      <label for="register_date">วันที่สมัคร <span class="required">*</span></label>
+      <input 
+        type="date" 
+        id="register_date" 
+        name="register_date" 
+        value="<%= formData.register_date || (member ? member.joined_date : new Date().toISOString().split('T')[0]) %>"
+        class="<%= errors && errors.find(e => e.path === 'register_date') ? 'error' : '' %>"
+        required
+      >
+      <% const dateError = errors && errors.find(e => e.path === 'register_date'); %>
       <% if (dateError) { %>
         <span class="error-message"><%= dateError.msg %></span>
       <% } %>
@@ -84,19 +121,20 @@
     
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">💾 บันทึก</button>
-      <a href="/members" class="btn btn-light">ยกเลิก</a>
+      <a href="<%= cancelPath || '/members' %>" class="btn btn-light">ยกเลิก</a>
     </div>
   </form>
 </div>
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
+    const isRegisterMode = <%= formMode === 'register' ? 'true' : 'false' %>;
     const nameInput = document.getElementById('full_name');
     const duplicateError = document.getElementById('duplicate_name_error');
     const currentId = '<%= member ? member.id : "" %>';
     const phoneInput = document.getElementById('phone_number');
 
-    if (nameInput && duplicateError) {
+    if (nameInput && duplicateError && !isRegisterMode) {
       let debounceTimer;
 
       const setDuplicateState = (message) => {

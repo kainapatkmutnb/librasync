@@ -1,25 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { Member, LoanRecord } = require('../models');
+const bcrypt = require('bcrypt');
+const { Member, LoanRecord, UserAccount, sequelize } = require('../models');
 const { Op, fn, col, where } = require('sequelize');
-const { validate, memberValidation } = require('../middleware/validate');
+const { validate, memberCreateValidation, memberUpdateValidation } = require('../middleware/validate');
+const { requireAdmin } = require('../middleware/rbac');
+
+router.use(requireAdmin);
 
 const normalizePhoneNumber = (input) => {
-  const digits = String(input || '').replace(/[^0-9]/g, '');
-
-  if (digits.length === 10) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  const digits = String(input || '').replace(/\D/g, '').slice(0, 10);
+  if (digits.length < 10) {
+    return input;
   }
 
-  if (digits.length === 9) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-
-  if (digits.length > 10) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-  }
-
-  return digits;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
 };
 
 // List members with search and pagination
@@ -40,6 +35,7 @@ router.get('/', async (req, res) => {
 
     const { count, rows: members } = await Member.findAndCountAll({
       where: whereClause,
+      include: [{ model: UserAccount, attributes: ['username', 'role'] }],
       limit,
       offset,
       order: [['full_name', 'ASC']]
@@ -77,8 +73,10 @@ router.get('/new', (req, res) => {
   res.render('members/form', {
     title: 'เพิ่มสมาชิก - LibraSync',
     member: null,
+    account: null,
     formData: req.flash('formData')[0] || {},
-    errors: req.flash('errors') || []
+    errors: req.flash('errors') || [],
+    formMode: 'admin'
   });
 });
 
@@ -113,21 +111,40 @@ router.get('/check-duplicate', async (req, res) => {
 // Create member
 router.post('/', (req, res, next) => {
   req.body.phone_number = normalizePhoneNumber(req.body.phone_number);
+  req.body.register_date = req.body.register_date || new Date().toISOString().split('T')[0];
   next();
-}, validate(memberValidation), async (req, res) => {
+}, validate(memberCreateValidation), async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
-    await Member.create({
+    const member = await Member.create({
       full_name: req.body.full_name,
       email: req.body.email,
       phone_number: req.body.phone_number,
-      joined_date: req.body.joined_date
-    });
+      joined_date: req.body.register_date
+    }, { transaction });
+
+    const password_hash = await bcrypt.hash(req.body.password, 10);
+
+    await UserAccount.create({
+      member_id: member.id,
+      username: req.body.username,
+      password_hash,
+      role: 'user'
+    }, { transaction });
+
+    await transaction.commit();
+
     req.flash('success', 'เพิ่มสมาชิกสำเร็จ');
     res.redirect('/members');
   } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
+
     console.error(error);
     if (error.name === 'SequelizeUniqueConstraintError') {
-      req.flash('error', 'อีเมลนี้มีอยู่ในระบบแล้ว');
+      req.flash('error', 'อีเมลหรือชื่อผู้ใช้นี้มีอยู่ในระบบแล้ว');
       return res.redirect('/members/new');
     }
     req.flash('error', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
@@ -138,16 +155,21 @@ router.post('/', (req, res, next) => {
 // Edit member form
 router.get('/:id/edit', async (req, res) => {
   try {
-    const member = await Member.findByPk(req.params.id);
+    const member = await Member.findByPk(req.params.id, {
+      include: [{ model: UserAccount, attributes: ['username', 'role'] }]
+    });
     if (!member) {
       req.flash('error', 'ไม่พบสมาชิก');
       return res.redirect('/members');
     }
+
     res.render('members/form', {
       title: 'แก้ไขสมาชิก - LibraSync',
       member,
+      account: member.UserAccount || null,
       formData: req.flash('formData')[0] || {},
-      errors: req.flash('errors') || []
+      errors: req.flash('errors') || [],
+      formMode: 'admin'
     });
   } catch (error) {
     console.error(error);
@@ -159,26 +181,63 @@ router.get('/:id/edit', async (req, res) => {
 // Update member
 router.post('/:id/update', (req, res, next) => {
   req.body.phone_number = normalizePhoneNumber(req.body.phone_number);
+  req.body.register_date = req.body.register_date || new Date().toISOString().split('T')[0];
   next();
-}, validate(memberValidation), async (req, res) => {
+}, validate(memberUpdateValidation), async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
-    const member = await Member.findByPk(req.params.id);
+    const member = await Member.findByPk(req.params.id, {
+      include: [{ model: UserAccount }],
+      transaction
+    });
+
     if (!member) {
+      await transaction.rollback();
       req.flash('error', 'ไม่พบสมาชิก');
       return res.redirect('/members');
     }
+
     await member.update({
       full_name: req.body.full_name,
       email: req.body.email,
       phone_number: req.body.phone_number,
-      joined_date: req.body.joined_date
-    });
+      joined_date: req.body.register_date
+    }, { transaction });
+
+    if (!member.UserAccount) {
+      const password_hash = await bcrypt.hash(req.body.password || '1234', 10);
+      await UserAccount.create({
+        member_id: member.id,
+        username: req.body.username,
+        password_hash,
+        role: 'user'
+      }, { transaction });
+    } else {
+      const accountUpdates = {
+        username: req.body.username,
+        role: 'user'
+      };
+
+      if (req.body.password) {
+        accountUpdates.password_hash = await bcrypt.hash(req.body.password, 10);
+      }
+
+      await member.UserAccount.update(accountUpdates, { transaction });
+    }
+
+    await transaction.commit();
+
     req.flash('success', 'อัพเดทสมาชิกสำเร็จ');
     res.redirect('/members');
   } catch (error) {
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
+
     console.error(error);
     if (error.name === 'SequelizeUniqueConstraintError') {
-      req.flash('error', 'อีเมลนี้มีอยู่ในระบบแล้ว');
+      req.flash('error', 'อีเมลหรือชื่อผู้ใช้นี้มีอยู่ในระบบแล้ว');
       return res.redirect(`/members/${req.params.id}/edit`);
     }
     req.flash('error', 'เกิดข้อผิดพลาดในการอัพเดทข้อมูล');

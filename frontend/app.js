@@ -7,6 +7,7 @@ require('dotenv').config();
 const app = express();
 const PORT = Number(process.env.FRONTEND_PORT || 5173);
 const API_BASE_URL = process.env.BACKEND_API_URL || 'http://localhost:3000/api';
+const proxySecret = process.env.AUTH_PROXY_SECRET || 'dev-proxy-secret-change-me';
 const isProduction = process.env.NODE_ENV === 'production';
 
 if (isProduction) {
@@ -39,6 +40,7 @@ app.use(flash());
 app.use((req, res, next) => {
   res.locals.success = req.flash('success');
   res.locals.error = req.flash('error');
+  res.locals.currentUser = req.session.authUser || null;
   next();
 });
 
@@ -68,6 +70,21 @@ const persistFlashesToNextRequest = (req, flashes = {}) => {
   error.forEach((message) => req.flash('error', message));
 };
 
+const syncAuthSession = (req, authSession) => {
+  if (!authSession || typeof authSession !== 'object') {
+    return;
+  }
+
+  if (authSession.action === 'set' && authSession.user) {
+    req.session.authUser = authSession.user;
+    return;
+  }
+
+  if (authSession.action === 'clear') {
+    delete req.session.authUser;
+  }
+};
+
 app.all('*', async (req, res) => {
   try {
     const apiUrl = buildApiUrl(req.originalUrl);
@@ -76,11 +93,11 @@ app.all('*', async (req, res) => {
 
     const response = await fetch(apiUrl, {
       method,
-      headers: canHaveBody
-        ? {
-            'Content-Type': 'application/json'
-          }
-        : undefined,
+      headers: {
+        ...(canHaveBody ? { 'Content-Type': 'application/json' } : {}),
+        'x-proxy-secret': proxySecret,
+        'x-auth-user': JSON.stringify(req.session.authUser || null)
+      },
       body: canHaveBody ? JSON.stringify(req.body || {}) : undefined
     });
 
@@ -96,8 +113,21 @@ app.all('*', async (req, res) => {
       return res.status(response.status).send(csvBody);
     }
 
+    if (contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) {
+      const excelBuffer = Buffer.from(await response.arrayBuffer());
+      const disposition = response.headers.get('content-disposition');
+
+      if (disposition) {
+        res.setHeader('Content-Disposition', disposition);
+      }
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      return res.status(response.status).send(excelBuffer);
+    }
+
     if (contentType.includes('application/json')) {
       const payload = await response.json();
+      syncAuthSession(req, payload.authSession);
 
       if (payload && payload.redirect) {
         persistFlashesToNextRequest(req, payload.flashes);

@@ -2,7 +2,9 @@
 
 <div class="page-header">
   <h1>รายการหนังสือ</h1>
-  <a href="/books/new" class="btn btn-primary no-print">➕ เพิ่มหนังสือ</a>
+  <% if (currentUser && currentUser.role === 'admin') { %>
+    <a href="/books/new" class="btn btn-primary no-print">➕ เพิ่มหนังสือ</a>
+  <% } %>
 </div>
 
 <!-- Search and Pagination Controls -->
@@ -70,7 +72,9 @@
         <th>ทั้งหมด</th>
         <th>ถูกยืม</th>
         <th>คงเหลือ</th>
-        <th class="no-print actions-column">จัดการ</th>
+        <% if (currentUser && currentUser.role === 'admin') { %>
+          <th class="no-print actions-column">จัดการ</th>
+        <% } %>
       </tr>
     </thead>
     <tbody>
@@ -83,12 +87,14 @@
           <td><%= book.total_copies %></td>
           <td><%= book.borrowed_copies %></td>
           <td><%= book.available_copies %></td>
-          <td class="no-print actions-column">
-            <a href="/books/<%= book.id %>/edit" class="btn btn-sm btn-warning">แก้ไข</a>
-            <form action="/books/<%= book.id %>/delete" method="POST" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบหนังสือนี้?')">
-              <button type="submit" class="btn btn-sm btn-danger">ลบ</button>
-            </form>
-          </td>
+          <% if (currentUser && currentUser.role === 'admin') { %>
+            <td class="no-print actions-column">
+              <a href="/books/<%= book.id %>/edit" class="btn btn-sm btn-warning">แก้ไข</a>
+              <form action="/books/<%= book.id %>/delete" method="POST" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบหนังสือนี้?')">
+                <button type="submit" class="btn btn-sm btn-danger">ลบ</button>
+              </form>
+            </td>
+          <% } %>
         </tr>
       <% }) %>
     </tbody>

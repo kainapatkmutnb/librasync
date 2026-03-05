@@ -3,6 +3,7 @@ const router = express.Router();
 const { Book, Author, LoanRecord } = require('../models');
 const { Op, literal, fn, col, where } = require('sequelize');
 const { validate, bookValidation } = require('../middleware/validate');
+const { requireAdmin } = require('../middleware/rbac');
 
 const parsePositiveInteger = (value, fallback = 1) => {
   const parsed = Number.parseInt(value, 10);
@@ -157,7 +158,7 @@ router.get('/', async (req, res) => {
 });
 
 // New book form
-router.get('/new', async (req, res) => {
+router.get('/new', requireAdmin, async (req, res) => {
   try {
     const authors = await Author.findAll({ order: [['full_name', 'ASC']] });
     const formData = req.flash('formData')[0] || {};
@@ -185,7 +186,7 @@ router.get('/new', async (req, res) => {
 });
 
 // Generate unique ISBN (AJAX)
-router.get('/isbn/generate', async (req, res) => {
+router.get('/isbn/generate', requireAdmin, async (req, res) => {
   try {
     const isbn = await generateUniqueIsbn();
     res.json({ isbn });
@@ -196,7 +197,7 @@ router.get('/isbn/generate', async (req, res) => {
 });
 
 // Realtime duplicate check for book title
-router.get('/check-duplicate', async (req, res) => {
+router.get('/check-duplicate', requireAdmin, async (req, res) => {
   try {
     const value = String(req.query.value || '').trim().toLowerCase();
     const excludeId = Number.parseInt(req.query.excludeId, 10);
@@ -224,7 +225,7 @@ router.get('/check-duplicate', async (req, res) => {
 });
 
 // Create book
-router.post('/', async (req, res, next) => {
+router.post('/', requireAdmin, async (req, res, next) => {
   try {
     const incomingIsbn = normalizeIsbn(req.body.isbn || '');
     req.body.isbn = incomingIsbn || await generateUniqueIsbn();
@@ -260,7 +261,7 @@ router.post('/', async (req, res, next) => {
 });
 
 // Edit book form
-router.get('/:id/edit', async (req, res) => {
+router.get('/:id/edit', requireAdmin, async (req, res) => {
   try {
     const book = await Book.findByPk(req.params.id);
     if (!book) {
@@ -283,7 +284,7 @@ router.get('/:id/edit', async (req, res) => {
 });
 
 // Update book
-router.post('/:id/update', async (req, res, next) => {
+router.post('/:id/update', requireAdmin, async (req, res, next) => {
   try {
     const book = await Book.findByPk(req.params.id);
     if (!book) {
@@ -334,7 +335,7 @@ router.post('/:id/update', async (req, res, next) => {
 });
 
 // Delete book
-router.post('/:id/delete', async (req, res) => {
+router.post('/:id/delete', requireAdmin, async (req, res) => {
   try {
     const book = await Book.findByPk(req.params.id);
     if (!book) {
