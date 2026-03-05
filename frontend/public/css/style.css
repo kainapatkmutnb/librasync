@@ -46,6 +46,10 @@
 }
 
 /* Base Styles */
+html {
+  font-size: 19px;
+}
+
 * {
   margin: 0;
   padding: 0;
