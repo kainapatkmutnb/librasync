@@ -72,14 +72,16 @@
       </div>
     </div>
 
-    <div class="stat-card warning" title="เงื่อนไข: สมาชิกที่มียืมสะสมตั้งแต่ 3 ครั้งขึ้นไป | query: <%= dashboardLinks && dashboardLinks.highRisk ? dashboardLinks.highRisk : '/reports/member-borrow-summary?min_borrows=3' %>">
-      <div class="stat-icon"><i class="fas fa-user-clock"></i></div>
-      <div class="stat-content">
-        <h3>สมาชิกค้างยืมหลายเล่ม</h3>
-        <p class="stat-number"><%= stats.highRiskMembers || 0 %></p>
-        <a href="<%= dashboardLinks && dashboardLinks.highRisk ? dashboardLinks.highRisk : '/reports/member-borrow-summary?min_borrows=3' %>" class="text-link" title="query: <%= dashboardLinks && dashboardLinks.highRisk ? dashboardLinks.highRisk : '/reports/member-borrow-summary?min_borrows=3' %>">ดูรายงานสมาชิก</a>
+    <% if (currentUser && currentUser.role === 'admin') { %>
+      <div class="stat-card warning" title="เงื่อนไข: สมาชิกที่มียืมสะสมตั้งแต่ 3 ครั้งขึ้นไป | query: <%= dashboardLinks && dashboardLinks.highRisk ? dashboardLinks.highRisk : '/reports/member-borrow-summary?min_borrows=3' %>">
+        <div class="stat-icon"><i class="fas fa-user-clock"></i></div>
+        <div class="stat-content">
+          <h3>สมาชิกค้างยืมหลายเล่ม</h3>
+          <p class="stat-number"><%= stats.highRiskMembers || 0 %></p>
+          <a href="<%= dashboardLinks && dashboardLinks.highRisk ? dashboardLinks.highRisk : '/reports/member-borrow-summary?min_borrows=3' %>" class="text-link" title="query: <%= dashboardLinks && dashboardLinks.highRisk ? dashboardLinks.highRisk : '/reports/member-borrow-summary?min_borrows=3' %>">ดูรายงานสมาชิก</a>
+        </div>
       </div>
-    </div>
+    <% } %>
   </div>
 
   <div class="dashboard-grid-two">
