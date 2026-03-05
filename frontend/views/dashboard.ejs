@@ -15,7 +15,7 @@
     <div class="stat-card">
       <div class="stat-icon"><i class="fas fa-book-open"></i></div>
       <div class="stat-content">
-        <h3>กำลังถูกยืม</h3>
+        <h3><%= currentUser && currentUser.role === 'user' ? 'กำลังถูกยืมของฉัน' : 'กำลังถูกยืม' %></h3>
         <p class="stat-number"><%= stats.activeLoans || 0 %></p>
       </div>
     </div>
@@ -28,13 +28,15 @@
       </div>
     </div>
 
-    <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-users"></i></div>
-      <div class="stat-content">
-        <h3>สมาชิกทั้งหมด</h3>
-        <p class="stat-number"><%= stats.totalMembers || 0 %></p>
+    <% if (!currentUser || currentUser.role === 'admin') { %>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-content">
+          <h3>สมาชิกทั้งหมด</h3>
+          <p class="stat-number"><%= stats.totalMembers || 0 %></p>
+        </div>
       </div>
-    </div>
+    <% } %>
 
     <div class="stat-card">
       <div class="stat-icon"><i class="fas fa-arrow-up"></i></div>
@@ -63,14 +65,16 @@
       </div>
     </div>
 
-    <div class="stat-card warning" title="เงื่อนไข: หนังสือที่เหลือให้ยืม <= 0 | query: <%= dashboardLinks && dashboardLinks.lowStock ? dashboardLinks.lowStock : '/books?availability=out-of-stock' %>">
-      <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
-      <div class="stat-content">
-        <h3>หนังสือใกล้หมดสต็อก</h3>
-        <p class="stat-number"><%= stats.lowStockBooks || 0 %></p>
-        <a href="<%= dashboardLinks && dashboardLinks.lowStock ? dashboardLinks.lowStock : '/books?availability=out-of-stock' %>" class="text-link" title="query: <%= dashboardLinks && dashboardLinks.lowStock ? dashboardLinks.lowStock : '/books?availability=out-of-stock' %>">จัดการหนังสือ</a>
+    <% if (!currentUser || currentUser.role === 'admin') { %>
+      <div class="stat-card warning" title="เงื่อนไข: หนังสือที่เหลือให้ยืม <= 0 | query: <%= dashboardLinks && dashboardLinks.lowStock ? dashboardLinks.lowStock : '/books?availability=out-of-stock' %>">
+        <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+        <div class="stat-content">
+          <h3>หนังสือใกล้หมดสต็อก</h3>
+          <p class="stat-number"><%= stats.lowStockBooks || 0 %></p>
+          <a href="<%= dashboardLinks && dashboardLinks.lowStock ? dashboardLinks.lowStock : '/books?availability=out-of-stock' %>" class="text-link" title="query: <%= dashboardLinks && dashboardLinks.lowStock ? dashboardLinks.lowStock : '/books?availability=out-of-stock' %>">จัดการหนังสือ</a>
+        </div>
       </div>
-    </div>
+    <% } %>
 
     <% if (currentUser && currentUser.role === 'admin') { %>
       <div class="stat-card warning" title="เงื่อนไข: สมาชิกที่มียืมสะสมตั้งแต่ 3 ครั้งขึ้นไป | query: <%= dashboardLinks && dashboardLinks.highRisk ? dashboardLinks.highRisk : '/reports/member-borrow-summary?min_borrows=3' %>">

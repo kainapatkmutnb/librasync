@@ -18,12 +18,13 @@ const parseTrendDays = (value) => {
 router.get('/', async (req, res) => {
   try {
     const isUserRole = req.user?.role === 'user';
+    const userMemberId = isUserRole ? parseMemberId(req.user?.member_id) : null;
     const selectedMemberId = isUserRole
-      ? req.user.member_id
+      ? userMemberId
       : parseMemberId(req.query.member_id);
     const trendDays = parseTrendDays(req.query.trend_days);
     const today = new Date().toISOString().split('T')[0];
-    const loanScope = isUserRole ? { member_id: req.user.member_id } : {};
+    const loanScope = isUserRole ? { member_id: userMemberId || -1 } : {};
 
     // Stats
     const totalBooks = Number(await Book.sum('total_copies')) || 0;
@@ -86,7 +87,7 @@ router.get('/', async (req, res) => {
 
     // Recent activities (last 10 loan records)
     const recentActivities = await LoanRecord.findAll({
-      where: isUserRole ? { member_id: req.user.member_id } : undefined,
+      where: isUserRole ? { member_id: userMemberId || -1 } : undefined,
       include: [
         { model: Book, attributes: ['title'] },
         { model: Member, attributes: ['full_name'] }
@@ -113,7 +114,7 @@ router.get('/', async (req, res) => {
       `,
       {
         type: QueryTypes.SELECT,
-        replacements: isUserRole ? { memberId: req.user.member_id } : {}
+        replacements: isUserRole ? { memberId: userMemberId || -1 } : {}
       }
     );
 
@@ -140,7 +141,7 @@ router.get('/', async (req, res) => {
       `,
       {
         type: QueryTypes.SELECT,
-        replacements: isUserRole ? { memberId: req.user.member_id } : {}
+        replacements: isUserRole ? { memberId: userMemberId || -1 } : {}
       }
     );
 
@@ -163,12 +164,12 @@ router.get('/', async (req, res) => {
       `,
       {
         type: QueryTypes.SELECT,
-        replacements: isUserRole ? { memberId: req.user.member_id } : {}
+        replacements: isUserRole ? { memberId: userMemberId || -1 } : {}
       }
     );
 
     const memberOptions = await Member.findAll({
-      where: isUserRole ? { id: req.user.member_id } : undefined,
+      where: isUserRole ? { id: userMemberId || -1 } : undefined,
       attributes: ['id', 'full_name', 'email'],
       order: [['full_name', 'ASC']]
     });
